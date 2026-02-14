@@ -2,6 +2,26 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
+
+class CategoryInfo(BaseModel):
+    """Nested category information for transaction response"""
+    id: int
+    name: str
+    
+    class Config:
+        from_attributes = True
+
+
+class SubcategoryInfo(BaseModel):
+    """Nested subcategory information for transaction response"""
+    id: int
+    name: str
+    category_id: int
+    
+    class Config:
+        from_attributes = True
+
+
 class TransactionBase(BaseModel):
     amount: float
     date: datetime
@@ -22,6 +42,12 @@ class TransactionResponse(TransactionBase):
     predicted_confidence: Optional[float] = None
     pending: bool
     created_at: datetime
+    
+    # Budget category fields
+    category_id: Optional[int] = None
+    subcategory_id: Optional[int] = None
+    budget_category: Optional[CategoryInfo] = None
+    budget_subcategory: Optional[SubcategoryInfo] = None
     
     class Config:
         from_attributes = True

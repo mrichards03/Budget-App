@@ -41,6 +41,10 @@ class Transaction(Base):
     predicted_category = Column(String, nullable=True)
     predicted_confidence = Column(Float, nullable=True)
     
+    # User-defined budget categories
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    subcategory_id = Column(Integer, ForeignKey("subcategories.id"), nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -48,3 +52,5 @@ class Transaction(Base):
     account = relationship("Account", back_populates="transactions", foreign_keys=[account_id])
     transfer_account = relationship("Account", foreign_keys=[transfer_account_id])
     merchants = relationship("Merchant", secondary="transaction_merchants", back_populates="transactions")
+    category = relationship("Category", back_populates="transactions")
+    subcategory = relationship("Subcategory", back_populates="transactions")

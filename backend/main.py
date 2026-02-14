@@ -2,8 +2,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import transactions, plaid, ml
-from app.core.database import init_db
+from app.api.routes import transactions, plaid, ml, categories
+from app.core.database import init_db, get_db
+from app.services.category_service import CategoryService
 import logging
 
 logging.basicConfig(
@@ -17,7 +18,17 @@ logging.getLogger("plaid").setLevel(logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize database and seed default categories
     init_db()
+    
+    # Seed default categories if needed
+    db = next(get_db())
+    try:
+        category_service = CategoryService()
+        category_service.seed_default_categories(db)
+    finally:
+        db.close()
+    
     yield
 
 app = FastAPI(title="Budget App API", version="1.0.0", lifespan=lifespan)
@@ -34,6 +45,7 @@ app.add_middleware(
 # Include routers
 app.include_router(plaid.router, prefix="/api/plaid", tags=["plaid"])
 app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
+app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
 app.include_router(ml.router, prefix="/api/ml", tags=["ml"])
 
 @app.get("/")
