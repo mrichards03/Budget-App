@@ -1,0 +1,35 @@
+name: budget_app
+description: A budget tracking app with Plaid integration and ML-powered categorization.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # HTTP client
+  http: ^1.1.0
+  
+  # State management (choose one or use what you prefer)
+  provider: ^6.1.1
+  
+  # Plaid integration
+  plaid_flutter: ^4.1.0
+  
+  # Local storage
+  shared_preferences: ^2.2.2
+  
+  # UI
+  cupertino_icons: ^1.0.6
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
