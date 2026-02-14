@@ -8,10 +8,25 @@ class ApiService {
   ApiService({required this.baseUrl});
 
   // Plaid endpoints
-  Future<String> createLinkToken() async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/plaid/create_link_token'),
+  Future<List<dynamic>> getInstitutions() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/plaid/institutions'),
     );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to get institutions');
+    }
+  }
+
+  Future<String> createLinkToken({String? itemId}) async {
+    final uri = itemId != null
+        ? Uri.parse('$baseUrl/api/plaid/create_link_token')
+            .replace(queryParameters: {'item_id': itemId})
+        : Uri.parse('$baseUrl/api/plaid/create_link_token');
+
+    final response = await http.post(uri);
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
