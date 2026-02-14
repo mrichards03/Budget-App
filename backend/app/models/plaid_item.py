@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
 
@@ -11,4 +12,7 @@ class PlaidItem(Base):
     institution_id = Column(String)
     institution_name = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
-    last_synced = Column(DateTime)
+    cursor = Column(String)
+
+    # Relationship
+    accounts = relationship("Account", back_populates="plaid_item")

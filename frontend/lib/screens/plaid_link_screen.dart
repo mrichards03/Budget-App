@@ -69,7 +69,8 @@ class _PlaidLinkScreenState extends State<PlaidLinkScreen> {
     }
   }
 
-  Future<void> _handlePlaidSuccess(String publicToken, LinkInstitution? institution) async {
+  Future<void> _handlePlaidSuccess(
+      String publicToken, LinkInstitution? institution) async {
     final apiService = Provider.of<ApiService>(context, listen: false);
 
     try {

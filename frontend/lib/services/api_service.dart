@@ -40,10 +40,10 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> syncTransactions(String accessToken) async {
+  Future<Map<String, dynamic>> syncTransactions(String item_id) async {
     final response = await http.post(
       Uri.parse(
-          '$baseUrl/api/plaid/sync_transactions?access_token=$accessToken'),
+          '$baseUrl/api/plaid/sync_transactions?item_id=$item_id'),
     );
 
     if (response.statusCode == 200) {

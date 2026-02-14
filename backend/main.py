@@ -4,6 +4,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.routes import transactions, plaid, ml
 from app.core.database import init_db
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,  # Show all logs including DEBUG
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Reduce noise from libraries
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("plaid").setLevel(logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

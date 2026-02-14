@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from datetime import datetime
@@ -10,15 +10,32 @@ class Transaction(Base):
     plaid_transaction_id = Column(String, unique=True, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"))
     
+    # Basic transaction info
     amount = Column(Float)
     date = Column(DateTime)
-    name = Column(String)
-    merchant_name = Column(String, nullable=True)
+    authorized_datetime = Column(DateTime, nullable=True)
+    name = Column(String)  # Raw transaction name
     
-    category = Column(String, nullable=True)  # Primary category
-    category_detailed = Column(String, nullable=True)  # Detailed category
+    # Plaid categories
+    category_primary = Column(String, nullable=True)
+    category_detailed = Column(String, nullable=True)
+    category_confidence = Column(String, nullable=True)
     
+    # Transaction metadata
     pending = Column(Boolean, default=False)
+    pending_transaction_id = Column(String, nullable=True)
+    payment_channel = Column(String, nullable=True)
+
+    # Transfer detection - important for credit card payments, account transfers
+    is_transfer = Column(Boolean, default=False)
+    transfer_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)  # Link to other account
+    transfer_transaction_id = Column(String, nullable=True)  # Plaid's transfer matching ID
+    
+    # Payment metadata (for transfers, bill payments)
+    payment_meta = Column(JSON, nullable=True)  # Store full payment_meta object
+    
+    # Location (store as JSON)
+    location = Column(JSON, nullable=True)
     
     # ML predicted category (for your custom categorization)
     predicted_category = Column(String, nullable=True)
@@ -28,4 +45,6 @@ class Transaction(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship
-    account = relationship("Account", back_populates="transactions")
+    account = relationship("Account", back_populates="transactions", foreign_keys=[account_id])
+    transfer_account = relationship("Account", foreign_keys=[transfer_account_id])
+    merchants = relationship("Merchant", secondary="transaction_merchants", back_populates="transactions")
