@@ -176,6 +176,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                                 ..._accounts.map((account) => _AccountItem(
                                       name: account.name,
                                       balance: account.currentBalance,
+                                      accountType: account.accountType,
                                     )),
                                 const SizedBox(height: 12),
 
@@ -291,15 +292,19 @@ class _NavItem extends StatelessWidget {
 class _AccountItem extends StatelessWidget {
   final String name;
   final double balance;
+  final String accountType;
 
   const _AccountItem({
     required this.name,
     required this.balance,
+    required this.accountType,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isNegative = balance < 0;
+    // For credit accounts: positive balance = debt (red), negative = overpaid (green)
+    // For other accounts: positive balance = money (green), negative = overdrawn (red)
+    final bool isGood = accountType == 'credit' ? balance < 0 : balance > 0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -325,7 +330,7 @@ class _AccountItem extends StatelessWidget {
                 Text(
                   '\$${balance.abs().toStringAsFixed(2)}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: isNegative ? Colors.red : Colors.green,
+                        color: isGood ? Colors.green : Colors.red,
                         fontWeight: FontWeight.w600,
                       ),
                 ),

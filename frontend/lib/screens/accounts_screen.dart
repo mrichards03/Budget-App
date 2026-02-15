@@ -58,19 +58,27 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
-  double get _clearedBalance {
-    return _transactions
-        .where((t) => !t.pending)
-        .fold(0.0, (sum, t) => sum + t.amount);
-  }
-
   double get _unclearedBalance {
-    return _transactions
-        .where((t) => t.pending)
-        .fold(0.0, (sum, t) => sum + t.amount);
+    return _transactions.where((t) => t.pending).fold(0.0, (sum, t) {
+      final account = _accounts.firstWhere((a) => a.id == t.accountId,
+          orElse: () => _accounts.first);
+      if (account.accountType == 'credit') {
+        return sum - t.amount;
+      }
+      return sum + t.amount;
+    });
   }
 
-  double get _workingBalance => _clearedBalance + _unclearedBalance;
+  double get _workingBalance {
+    return _accounts.fold(0.0, (sum, a) {
+      if (a.accountType == 'credit') {
+        return sum - a.currentBalance;
+      }
+      return sum + a.currentBalance;
+    });
+  }
+
+  double get _clearedBalance => _workingBalance - _unclearedBalance;
 
   String _getAccountName(int accountId) {
     final account = _accounts.firstWhere(

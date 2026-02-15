@@ -26,8 +26,8 @@ async def get_analytics_data(
     Get comprehensive analytics data with normalized structure.
     Returns all transactions with lookup maps for categories, subcategories, and accounts.
     """
-    # Query transactions
-    query = db.query(Transaction)
+    # Query transactions (exclude transfers as they are net-zero)
+    query = db.query(Transaction).filter(Transaction.is_transfer == False)
     if start_date:
         query = query.filter(Transaction.date >= start_date)
     if end_date:
@@ -135,7 +135,10 @@ async def get_spending_breakdown(
         func.sum(Transaction.amount).label('total')
     ).join(
         Transaction, Transaction.subcategory_id == Subcategory.id
-    ).filter(Transaction.amount > 0)
+    ).filter(
+        Transaction.amount > 0,
+        Transaction.is_transfer == False  # Exclude transfers
+    )
     
     if start_date:
         query = query.filter(Transaction.date >= start_date)
@@ -184,7 +187,7 @@ async def get_income_vs_spending(
     db: Session = Depends(get_db)
 ):
     """Get income vs spending analysis"""
-    query = db.query(Transaction)
+    query = db.query(Transaction).filter(Transaction.is_transfer == False)
     
     if start_date:
         query = query.filter(Transaction.date >= start_date)
@@ -193,8 +196,9 @@ async def get_income_vs_spending(
     
     transactions = query.all()
     
-    total_income = sum(t.amount for t in transactions if t.amount > 0)
-    total_spending = sum(t.amount for t in transactions if t.amount < 0)
+    # Plaid convention: positive = outflow/spending, negative = inflow/income
+    total_spending = sum(t.amount for t in transactions if t.amount > 0)
+    total_income = sum(t.amount for t in transactions if t.amount < 0)
     
     return {
         "total_income": float(total_income),

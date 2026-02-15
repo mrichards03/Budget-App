@@ -163,10 +163,12 @@ class BudgetService:
         spending = {}
         for subcat_budget in budget.subcategory_budgets:
             # Get all transactions for this subcategory in the budget period
+            # Exclude transfers as they are net-zero between accounts
             query = db.query(Transaction).filter(
                 Transaction.subcategory_id == subcat_budget.subcategory_id,
                 Transaction.date >= budget.start_date,
-                Transaction.amount > 0  # Plaid uses positive values for expenses
+                Transaction.amount > 0,  # Plaid uses positive values for expenses
+                Transaction.is_transfer == False  # Exclude transfers
             )
             
             # If budget has an end date, filter by it

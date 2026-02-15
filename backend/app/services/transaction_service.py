@@ -6,6 +6,7 @@ import plaid
 import logging
 
 from app.models import PlaidItem, Account, Transaction, Merchant
+from app.models.category import Category, Subcategory
 from app.utils.plaid_helpers import parse_plaid_date, parse_plaid_datetime
 
 logger = logging.getLogger(__name__)
@@ -164,6 +165,19 @@ class TransactionService:
                 transfer_account_id = matching_transfer.account_id
                 transfer_transaction_id = matching_transfer.plaid_transaction_id
         
+        # Auto-categorize transfers to the "Account Transfer" subcategory
+        subcategory_id = None
+        if is_transfer:
+            # Try to find the "Account Transfer" subcategory
+            transfer_subcategory = db.query(Subcategory).join(
+                Category, Subcategory.category_id == Category.id
+            ).filter(
+                Category.name == "Transfers",
+                Subcategory.name == "Account Transfer"
+            ).first()
+            if transfer_subcategory:
+                subcategory_id = transfer_subcategory.id
+        
         transaction = Transaction(
             plaid_transaction_id=txn['transaction_id'],
             account_id=account_id,
@@ -180,6 +194,7 @@ class TransactionService:
             is_transfer=is_transfer,
             transfer_account_id=transfer_account_id,
             transfer_transaction_id=transfer_transaction_id,
+            subcategory_id=subcategory_id,  # Auto-assign transfer category
             payment_meta=txn.get('payment_meta').to_dict() if txn.get('payment_meta') else None,
             location=txn.get('location').to_dict() if txn.get('location') else None
         )

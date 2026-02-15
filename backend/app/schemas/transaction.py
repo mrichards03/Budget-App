@@ -38,6 +38,10 @@ class TransactionResponse(BaseModel):
     pending: bool
     created_at: datetime
     
+    # Transfer information
+    is_transfer: bool = False
+    transfer_account_id: Optional[int] = None
+    
     # Merchant name (filtered by confidence at ORM level via @property)
     merchant_name: Optional[str] = None
     

@@ -316,6 +316,16 @@ class CategoryService:
                     {"name": "Other Income", "description": "Miscellaneous income"},
                 ]
             },
+            {
+                "name": "Transfers",
+                "description": "Transfers between accounts (net zero)",
+                "color": "#607D8B",
+                "icon": "swap_horiz",
+                "subcategories": [
+                    {"name": "Account Transfer", "description": "Transfers between your accounts"},
+                    {"name": "Credit Card Payment", "description": "Payments to credit cards"},
+                ]
+            },
         ]
         
         for cat_data in default_categories:

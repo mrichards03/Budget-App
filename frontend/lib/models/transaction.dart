@@ -8,6 +8,8 @@ class Transaction {
   final int? subcategoryId;
   final bool pending;
   final DateTime createdAt;
+  final bool isTransfer;
+  final int? transferAccountId;
 
   Transaction({
     required this.id,
@@ -19,6 +21,8 @@ class Transaction {
     this.subcategoryId,
     required this.pending,
     required this.createdAt,
+    this.isTransfer = false,
+    this.transferAccountId,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
@@ -32,6 +36,8 @@ class Transaction {
       subcategoryId: json['subcategory_id'],
       pending: json['pending'],
       createdAt: DateTime.parse(json['created_at']),
+      isTransfer: json['is_transfer'] ?? false,
+      transferAccountId: json['transfer_account_id'],
     );
   }
 }
