@@ -38,6 +38,30 @@ async def get_institutions(db: Session = Depends(get_db)):
     """
     return plaid_service.get_existing_institutions(db)
 
+
+@router.get("/items")
+async def get_plaid_items(db: Session = Depends(get_db)):
+    """
+    Get all Plaid items (connected institutions) with their accounts.
+    """
+    from app.models.plaid_item import PlaidItem
+    from app.models.account import Account
+    
+    items = db.query(PlaidItem).all()
+    result = []
+    
+    for item in items:
+        accounts = db.query(Account).filter(Account.plaid_item_id == item.item_id).all()
+        result.append({
+            "item_id": item.item_id,
+            "institution_id": item.institution_id,
+            "institution_name": item.institution_name,
+            "accounts": [acc.plaid_account_id for acc in accounts]
+        })
+    
+    return result
+
+
 @router.post("/create_link_token")
 async def create_link_token(item_id: str = None, db: Session = Depends(get_db)):
     """

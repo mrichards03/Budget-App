@@ -5,4 +5,5 @@ from app.models.plaid_item import PlaidItem
 from app.models.merchant import Merchant
 from app.models.transaction_merchant import transaction_merchants
 from app.models.category import Category, Subcategory
+from app.models.budget import Budget, SubcategoryBudget
 

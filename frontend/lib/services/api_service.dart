@@ -127,4 +127,145 @@ class ApiService {
       throw Exception('Failed to train models');
     }
   }
+
+  // Budget endpoints
+  Future<Map<String, dynamic>?> getCurrentBudget() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/budgets/current'),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else if (response.statusCode == 404) {
+      return null;
+    } else {
+      throw Exception('Failed to get current budget');
+    }
+  }
+
+  Future<Map<String, dynamic>> createBudget(Map<String, dynamic> budgetData) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/budgets'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(budgetData),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to create budget: ${response.body}');
+    }
+  }
+
+  Future<List<dynamic>> getBudgetCategories(int budgetId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/budgets/$budgetId/categories'),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to get budget categories');
+    }
+  }
+
+  // Category endpoints
+  Future<List<dynamic>> getCategories() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/categories'),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load categories');
+    }
+  }
+
+  // Account endpoints
+  Future<List<dynamic>> getAccounts() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/accounts'),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load accounts');
+    }
+  }
+
+  Future<List<dynamic>> getInstitutionsList() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/plaid/items'),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to get institutions list');
+    }
+  }
+
+  Future<double> getTotalBalance() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/accounts/total_balance'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['total_balance'].toDouble();
+    } else {
+      throw Exception('Failed to get total balance');
+    }
+  }
+
+  // Analytics endpoints
+  Future<Map<String, dynamic>> getSpendingBreakdown({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (startDate != null) {
+      queryParams['start_date'] = startDate.toIso8601String();
+    }
+    if (endDate != null) {
+      queryParams['end_date'] = endDate.toIso8601String();
+    }
+
+    final uri = Uri.parse('$baseUrl/api/analytics/spending_breakdown')
+        .replace(queryParameters: queryParams);
+
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to get spending breakdown');
+    }
+  }
+
+  Future<Map<String, dynamic>> getIncomeVsSpending({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final queryParams = <String, String>{};
+    if (startDate != null) {
+      queryParams['start_date'] = startDate.toIso8601String();
+    }
+    if (endDate != null) {
+      queryParams['end_date'] = endDate.toIso8601String();
+    }
+
+    final uri = Uri.parse('$baseUrl/api/analytics/income_vs_spending')
+        .replace(queryParameters: queryParams);
+
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to get income vs spending');
+    }
+  }
 }

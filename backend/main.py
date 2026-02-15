@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import transactions, plaid, ml, categories
+from app.api.routes import transactions, plaid, ml, categories, budgets, accounts, analytics
 from app.core.database import init_db, get_db
 from app.services.category_service import CategoryService
 import logging
@@ -47,6 +47,9 @@ app.include_router(plaid.router, prefix="/api/plaid", tags=["plaid"])
 app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
 app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
 app.include_router(ml.router, prefix="/api/ml", tags=["ml"])
+app.include_router(budgets.router, prefix="/api/budgets", tags=["budgets"])
+app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
+app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 
 @app.get("/")
 async def root():
