@@ -39,7 +39,7 @@ class CategoryService:
         """Get a specific category by name."""
         return db.query(Category).filter(Category.name == name).first()
     
-    def create_category(self, db: Session, category_data: CategoryCreate, is_system: bool = False) -> Category:
+    def create_category(self, db: Session, category_data: CategoryCreate) -> Category:
         """Create a new category."""
         # Check if category with same name already exists
         existing = self.get_category_by_name(db, category_data.name)
@@ -53,8 +53,7 @@ class CategoryService:
             name=category_data.name,
             description=category_data.description,
             color=category_data.color,
-            icon=category_data.icon,
-            is_system=is_system
+            icon=category_data.icon
         )
         db.add(db_category)
         db.commit()
@@ -102,12 +101,6 @@ class CategoryService:
         if not db_category:
             return False
         
-        if db_category.is_system:
-            raise HTTPException(
-                status_code=400,
-                detail="System categories cannot be deleted. You can modify them instead."
-            )
-        
         # Check if any transactions are using this category
         if db_category.transactions:
             raise HTTPException(
@@ -137,8 +130,7 @@ class CategoryService:
     def create_subcategory(
         self, 
         db: Session, 
-        subcategory_data: SubcategoryCreate, 
-        is_system: bool = False
+        subcategory_data: SubcategoryCreate
     ) -> Subcategory:
         """Create a new subcategory."""
         # Verify parent category exists
@@ -164,8 +156,7 @@ class CategoryService:
         db_subcategory = Subcategory(
             category_id=subcategory_data.category_id,
             name=subcategory_data.name,
-            description=subcategory_data.description,
-            is_system=is_system
+            description=subcategory_data.description
         )
         db.add(db_subcategory)
         db.commit()
@@ -214,12 +205,6 @@ class CategoryService:
         db_subcategory = self.get_subcategory_by_id(db, subcategory_id)
         if not db_subcategory:
             return False
-        
-        if db_subcategory.is_system:
-            raise HTTPException(
-                status_code=400,
-                detail="System subcategories cannot be deleted. You can modify them instead."
-            )
         
         # Check if any transactions are using this subcategory
         if db_subcategory.transactions:
@@ -342,8 +327,7 @@ class CategoryService:
                 name=cat_data["name"],
                 description=cat_data["description"],
                 color=cat_data.get("color"),
-                icon=cat_data.get("icon"),
-                is_system=True
+                icon=cat_data.get("icon")
             )
             db.add(category)
             db.flush()  # Flush to get the ID
@@ -353,8 +337,7 @@ class CategoryService:
                 subcategory = Subcategory(
                     category_id=category.id,
                     name=subcat_data["name"],
-                    description=subcat_data.get("description"),
-                    is_system=True
+                    description=subcat_data.get("description")
                 )
                 db.add(subcategory)
             

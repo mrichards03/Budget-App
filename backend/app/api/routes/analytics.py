@@ -2,13 +2,125 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+from collections import defaultdict
 
 from app.core.database import get_db
 from app.models.transaction import Transaction
 from app.models.category import Category, Subcategory
+from app.models.account import Account
+from app.schemas.analytics import AnalyticsResponse, AnalyticsSummary
+from app.schemas.transaction import TransactionResponse
+from app.schemas.common import CategoryInfo, SubcategoryInfo, AccountInfo
 
 router = APIRouter()
+
+
+@router.get("/data", response_model=AnalyticsResponse)
+async def get_analytics_data(
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get comprehensive analytics data with normalized structure.
+    Returns all transactions with lookup maps for categories, subcategories, and accounts.
+    """
+    # Query transactions
+    query = db.query(Transaction)
+    if start_date:
+        query = query.filter(Transaction.date >= start_date)
+    if end_date:
+        query = query.filter(Transaction.date <= end_date)
+    
+    transactions = query.all()
+    
+    # Build transaction responses (uses computed properties)
+    transaction_responses = [TransactionResponse.model_validate(t) for t in transactions]
+    
+    # Collect IDs for lookups
+    account_ids = {t.account_id for t in transactions}
+    subcategory_ids = {t.subcategory_id for t in transactions if t.subcategory_id}
+    
+    # Fetch all needed subcategories
+    subcategories_dict = {}
+    category_ids = set()
+    
+    if subcategory_ids:
+        subcategories = db.query(Subcategory).filter(Subcategory.id.in_(subcategory_ids)).all()
+        for sub in subcategories:
+            subcategories_dict[sub.id] = SubcategoryInfo.model_validate(sub)
+            category_ids.add(sub.category_id)
+    
+    # Fetch all needed categories
+    categories_dict = {}
+    if category_ids:
+        categories = db.query(Category).filter(Category.id.in_(category_ids)).all()
+        for cat in categories:
+            categories_dict[cat.id] = CategoryInfo.model_validate(cat)
+    
+    # Fetch all needed accounts
+    accounts_dict = {}
+    if account_ids:
+        accounts = db.query(Account).filter(Account.id.in_(account_ids)).all()
+        for acc in accounts:
+            accounts_dict[acc.id] = AccountInfo.model_validate(acc)
+    
+    # Calculate summary statistics
+    # Plaid convention: positive = outflow/spending, negative = inflow/income
+    total_spending = sum(t.amount for t in transactions if t.amount > 0)
+    total_income = sum(t.amount for t in transactions if t.amount < 0)
+    net = total_income + total_spending
+    
+    # Calculate date range
+    if transactions:
+        dates = [t.authorized_datetime or t.date for t in transactions]
+        min_date = min(dates)
+        max_date = max(dates)
+        date_range_days = max((max_date - min_date).days, 1)
+    else:
+        date_range_days = 1
+    
+    # Calculate averages
+    months = date_range_days / 30.44  # Average days per month
+    monthly_avg_spending = total_spending / months if months > 0 else 0
+    monthly_avg_income = total_income / months if months > 0 else 0
+    daily_avg_spending = total_spending / date_range_days if date_range_days > 0 else 0
+    daily_avg_income = total_income / date_range_days if date_range_days > 0 else 0
+    
+    # Category breakdown
+    category_breakdown = defaultdict(float)
+    subcategory_breakdown = defaultdict(float)
+    
+    for t in transactions:
+        if t.subcategory_id:
+            subcategory_breakdown[t.subcategory_id] += t.amount
+            # Get category_id from subcategory
+            if t.subcategory_id in subcategories_dict:
+                category_id = subcategories_dict[t.subcategory_id].category_id
+                category_breakdown[category_id] += t.amount
+    
+    summary = AnalyticsSummary(
+        total_spending=total_spending,
+        total_income=total_income,
+        net=net,
+        transaction_count=len(transactions),
+        date_range_days=date_range_days,
+        monthly_average_spending=monthly_avg_spending,
+        monthly_average_income=monthly_avg_income,
+        daily_average_spending=daily_avg_spending,
+        daily_average_income=daily_avg_income,
+        category_breakdown=dict(category_breakdown),
+        subcategory_breakdown=dict(subcategory_breakdown)
+    )
+    
+    return AnalyticsResponse(
+        transactions=transaction_responses,
+        categories=categories_dict,
+        subcategories=subcategories_dict,
+        accounts=accounts_dict,
+        summary=summary
+    )
 
 
 @router.get("/spending_breakdown")
@@ -23,7 +135,7 @@ async def get_spending_breakdown(
         func.sum(Transaction.amount).label('total')
     ).join(
         Transaction, Transaction.subcategory_id == Subcategory.id
-    ).filter(Transaction.amount < 0)
+    ).filter(Transaction.amount > 0)
     
     if start_date:
         query = query.filter(Transaction.date >= start_date)

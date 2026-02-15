@@ -4,7 +4,6 @@ class Category {
   final String? description;
   final String? color;
   final String? icon;
-  final bool isSystem;
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<Subcategory>? subcategories;
@@ -15,7 +14,6 @@ class Category {
     this.description,
     this.color,
     this.icon,
-    required this.isSystem,
     required this.createdAt,
     required this.updatedAt,
     this.subcategories,
@@ -28,7 +26,6 @@ class Category {
       description: json['description'],
       color: json['color'],
       icon: json['icon'],
-      isSystem: json['is_system'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       subcategories: json['subcategories'] != null
@@ -45,7 +42,6 @@ class Subcategory {
   final int categoryId;
   final String name;
   final String? description;
-  final bool isSystem;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -54,7 +50,6 @@ class Subcategory {
     required this.categoryId,
     required this.name,
     this.description,
-    required this.isSystem,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -65,7 +60,6 @@ class Subcategory {
       categoryId: json['category_id'],
       name: json['name'],
       description: json['description'],
-      isSystem: json['is_system'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );

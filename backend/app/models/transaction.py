@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boo
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from datetime import datetime
+from typing import Optional
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -44,6 +45,9 @@ class Transaction(Base):
     # User-defined budget category (subcategory contains the parent category)
     subcategory_id = Column(Integer, ForeignKey("subcategories.id"), nullable=True)
     
+    # User-defined memo/note
+    memo = Column(String, nullable=True)
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -52,3 +56,17 @@ class Transaction(Base):
     transfer_account = relationship("Account", foreign_keys=[transfer_account_id])
     merchants = relationship("Merchant", secondary="transaction_merchants", back_populates="transactions")
     subcategory = relationship("Subcategory", back_populates="transactions")
+    
+    @property
+    def merchant_name(self) -> Optional[str]:
+        """Get merchant name(s) filtered by confidence level. Concatenates multiple merchants."""
+        if self.merchants:
+            # Filter merchants by confidence level and collect names
+            merchant_names = [
+                merchant.name
+                for merchant in self.merchants
+                if merchant.confidence_level and merchant.confidence_level.upper() != 'LOW'
+            ]
+            if merchant_names:
+                return ', '.join(merchant_names)
+        return None

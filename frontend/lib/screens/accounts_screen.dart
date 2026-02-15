@@ -376,8 +376,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Widget _buildTransactionRow(Transaction transaction, bool isEditing) {
     final dateFormat = DateFormat('MM/dd/yyyy');
     final currencyFormat = NumberFormat.currency(symbol: '\$');
-    final isOutflow = transaction.amount < 0;
-    final isInflow = transaction.amount > 0;
+    final isOutflow = transaction.amount > 0;
+    final isInflow = transaction.amount < 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -399,14 +399,14 @@ class _AccountsScreenState extends State<AccountsScreen> {
           SizedBox(
             width: 100,
             child: Text(
-              dateFormat.format(transaction.date),
+              dateFormat.format(transaction.effectiveDate),
               style: const TextStyle(fontSize: 14),
             ),
           ),
           Expanded(
             flex: 2,
             child: Text(
-              transaction.merchantName ?? transaction.name,
+              transaction.displayName,
               style: const TextStyle(fontSize: 14),
               overflow: TextOverflow.ellipsis,
             ),
@@ -418,7 +418,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              transaction.categoryDetailed ?? '',
+              //TODO: Implement memo
+              transaction.memo ?? '',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade600,
@@ -440,7 +441,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
           SizedBox(
             width: 100,
             child: Text(
-              isInflow ? currencyFormat.format(transaction.amount) : '',
+              isInflow ? currencyFormat.format(transaction.amount.abs()) : '',
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontSize: 14,
@@ -500,7 +501,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
             Expanded(
               child: Text(
                 subcategoryName ??
-                    transaction.predictedCategory ??
                     'Ready to Assign',
                 style: TextStyle(
                   fontSize: 14,

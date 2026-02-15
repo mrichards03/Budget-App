@@ -2,16 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.models.transaction import Transaction
 from app.models.category import Category, Subcategory
-from app.schemas.transaction import TransactionResponse
-
-
-class CategorizeTransactionRequest(BaseModel):
-    subcategory_id: int
+from app.schemas.transaction import TransactionResponse, CategorizeTransactionRequest
 
 
 router = APIRouter()

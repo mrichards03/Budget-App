@@ -11,9 +11,6 @@ class Category(Base):
     name = Column(String, unique=True, index=True, nullable=False)
     description = Column(String, nullable=True)
     
-    # System categories cannot be deleted but can be modified
-    is_system = Column(Boolean, default=False)
-    
     # Optional color or icon for UI
     color = Column(String, nullable=True)  # Hex color code
     icon = Column(String, nullable=True)  # Icon identifier
@@ -32,9 +29,6 @@ class Subcategory(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     name = Column(String, index=True, nullable=False)
     description = Column(String, nullable=True)
-    
-    # System subcategories cannot be deleted but can be modified
-    is_system = Column(Boolean, default=False)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

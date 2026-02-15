@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../services/api_service.dart';
+import '../models/analytics.dart';
+import '../models/transaction.dart' as models;
 
 class ReflectScreen extends StatefulWidget {
   const ReflectScreen({super.key});
@@ -10,11 +13,12 @@ class ReflectScreen extends StatefulWidget {
 }
 
 class _ReflectScreenState extends State<ReflectScreen> {
-  Map<String, dynamic>? _spendingBreakdown;
-  Map<String, dynamic>? _incomeVsSpending;
+  AnalyticsResponse? _analyticsData;
   bool _isLoading = true;
   DateTime? _startDate;
   DateTime? _endDate;
+  int _hoveredCategoryIndex = -1;
+  int _hoveredSubcategoryIndex = -1;
 
   @override
   void initState() {
@@ -34,18 +38,13 @@ class _ReflectScreenState extends State<ReflectScreen> {
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
 
-      final spending = await apiService.analytics.getSpendingBreakdown(
-        startDate: _startDate,
-        endDate: _endDate,
-      );
-      final income = await apiService.analytics.getIncomeVsSpending(
+      final data = await apiService.analytics.getAnalyticsData(
         startDate: _startDate,
         endDate: _endDate,
       );
 
       setState(() {
-        _spendingBreakdown = spending;
-        _incomeVsSpending = income;
+        _analyticsData = AnalyticsResponse.fromJson(data);
         _isLoading = false;
       });
     } catch (e) {
@@ -82,6 +81,8 @@ class _ReflectScreenState extends State<ReflectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final summary = _analyticsData?.summary;
+
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _loadData,
@@ -128,7 +129,7 @@ class _ReflectScreenState extends State<ReflectScreen> {
                     ),
                   ),
 
-                  // Income vs Spending Card
+                  // Summary Stats Cards
                   SliverToBoxAdapter(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -139,18 +140,18 @@ class _ReflectScreenState extends State<ReflectScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Income vs Spending',
+                                'Summary',
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                               const SizedBox(height: 24),
+
+                              // Total Income and Spending
                               Row(
                                 children: [
                                   Expanded(
                                     child: _StatCard(
                                       title: 'Total Income',
-                                      amount:
-                                          _incomeVsSpending?['total_income'] ??
-                                              0.0,
+                                      amount: (summary?.totalIncome ?? 0.0).abs(),
                                       color: Colors.green,
                                       icon: Icons.arrow_downward,
                                     ),
@@ -159,10 +160,7 @@ class _ReflectScreenState extends State<ReflectScreen> {
                                   Expanded(
                                     child: _StatCard(
                                       title: 'Total Spending',
-                                      amount: (_incomeVsSpending?[
-                                                  'total_spending'] ??
-                                              0.0)
-                                          .abs(),
+                                      amount: summary?.totalSpending ?? 0.0,
                                       color: Colors.red,
                                       icon: Icons.arrow_upward,
                                     ),
@@ -170,13 +168,48 @@ class _ReflectScreenState extends State<ReflectScreen> {
                                 ],
                               ),
                               const SizedBox(height: 16),
+
+                              // Net
                               _StatCard(
                                 title: 'Net',
-                                amount: _incomeVsSpending?['net'] ?? 0.0,
-                                color: (_incomeVsSpending?['net'] ?? 0.0) >= 0
+                                amount: summary?.net ?? 0.0,
+                                color: (summary?.net ?? 0.0) >= 0
                                     ? Colors.green
                                     : Colors.red,
                                 icon: Icons.account_balance,
+                              ),
+
+                              const SizedBox(height: 24),
+                              const Divider(),
+                              const SizedBox(height: 24),
+
+                              // Averages
+                              Text(
+                                'Averages',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: 16),
+
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _StatCard(
+                                      title: 'Monthly Spending',
+                                      amount: summary?.monthlyAverageSpending ?? 0.0,
+                                      color: Colors.orange,
+                                      icon: Icons.calendar_month,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: _StatCard(
+                                      title: 'Daily Spending',
+                                      amount: summary?.dailyAverageSpending ?? 0.0,
+                                      color: Colors.purple,
+                                      icon: Icons.today,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -187,112 +220,405 @@ class _ReflectScreenState extends State<ReflectScreen> {
 
                   const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                  // Spending Breakdown
+                  // Category Pie Chart
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                      child: Text(
-                        'Spending Breakdown',
-                        style: Theme.of(context).textTheme.titleLarge,
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Spending by Category',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 24),
+                              _buildCategoryPieChart(),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
 
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                    sliver: _spendingBreakdown == null ||
-                            _spendingBreakdown!['categories'] == null ||
-                            (_spendingBreakdown!['categories'] as Map).isEmpty
-                        ? const SliverToBoxAdapter(
-                            child: Card(
-                              child: Padding(
-                                padding: EdgeInsets.all(24.0),
-                                child: Center(
-                                  child:
-                                      Text('No spending data for this period'),
-                                ),
-                              ),
-                            ),
-                          )
-                        : SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final categories =
-                                    _spendingBreakdown!['categories'] as Map;
-                                final category =
-                                    categories.keys.elementAt(index);
-                                final amount = (categories[category] as num)
-                                    .toDouble()
-                                    .abs();
-                                final total =
-                                    _spendingBreakdown!['total_spending']
-                                        as num;
-                                final percentage = total != 0
-                                    ? (amount / total.abs()) * 100
-                                    : 0;
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              category,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium,
-                                            ),
-                                            Text(
-                                              '\$${amount.toStringAsFixed(2)}',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleMedium
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                          child: LinearProgressIndicator(
-                                            value: percentage / 100,
-                                            minHeight: 8,
-                                            backgroundColor:
-                                                Colors.grey.shade200,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${percentage.toStringAsFixed(1)}% of total spending',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                              childCount:
-                                  (_spendingBreakdown!['categories'] as Map)
-                                      .length,
-                            ),
+                  // Subcategory Pie Chart
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Spending by Subcategory',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              const SizedBox(height: 24),
+                              _buildSubcategoryPieChart(),
+                            ],
                           ),
+                        ),
+                      ),
+                    ),
                   ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                  // Transaction List for Hovered Category
+                  if (_hoveredCategoryIndex >= 0)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: _buildTransactionsList(
+                                _hoveredCategoryIndex, true),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
                 ],
               ),
       ),
     );
+  }
+
+  Widget _buildCategoryPieChart() {
+    final summary = _analyticsData?.summary;
+    if (summary == null || summary.categoryBreakdown.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('No spending data for this period'),
+        ),
+      );
+    }
+
+    // Filter to only spending (positive amounts per Plaid convention)
+    final spendingData =
+        summary.categoryBreakdown.entries.where((e) => e.value > 0).toList();
+
+    if (spendingData.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('No spending data for this period'),
+        ),
+      );
+    }
+
+    final totalSpending =
+        spendingData.fold<double>(0, (sum, e) => sum + e.value);
+    final colors = _generateColors(spendingData.length);
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 300,
+          child: PieChart(
+            PieChartData(
+              sections: spendingData.asMap().entries.map((entry) {
+                final index = entry.key;
+                final subcategoryId = entry.value.key;
+                final amount = entry.value.value;
+                final percentage = (amount / totalSpending) * 100;
+                final isHovered = _hoveredCategoryIndex == index;
+
+                return PieChartSectionData(
+                  value: amount,
+                  title: '${percentage.toStringAsFixed(1)}%',
+                  radius: isHovered ? 110 : 100,
+                  titleStyle: TextStyle(
+                    fontSize: isHovered ? 16 : 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  color: colors[index],
+                );
+              }).toList(),
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              pieTouchData: PieTouchData(
+                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                  setState(() {
+                    if (!event.isInterestedForInteractions ||
+                        pieTouchResponse == null ||
+                        pieTouchResponse.touchedSection == null) {
+                      _hoveredCategoryIndex = -1;
+                      return;
+                    }
+                    _hoveredCategoryIndex =
+                        pieTouchResponse.touchedSection!.touchedSectionIndex;
+                  });
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          children: spendingData.asMap().entries.map((entry) {
+            final index = entry.key;
+            final categoryId = entry.value.key;
+            final amount = entry.value.value;
+            final categoryName =
+                _analyticsData?.categories[categoryId]?.name ?? 'Unknown';
+
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _hoveredCategoryIndex =
+                      _hoveredCategoryIndex == index ? -1 : index;
+                });
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: colors[index],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$categoryName (\$${amount.toStringAsFixed(2)})',
+                    style: TextStyle(
+                      fontWeight: _hoveredCategoryIndex == index
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSubcategoryPieChart() {
+    final summary = _analyticsData?.summary;
+    if (summary == null || summary.subcategoryBreakdown.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('No spending data for this period'),
+        ),
+      );
+    }
+
+    // Filter to only spending (positive amounts per Plaid convention)
+    final spendingData =
+        summary.subcategoryBreakdown.entries.where((e) => e.value > 0).toList();
+
+    if (spendingData.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32.0),
+          child: Text('No spending data for this period'),
+        ),
+      );
+    }
+
+    final totalSpending =
+        spendingData.fold<double>(0, (sum, e) => sum + e.value);
+    final colors = _generateColors(spendingData.length);
+
+    return Column(
+      children: [
+        SizedBox(
+          height: 300,
+          child: PieChart(
+            PieChartData(
+              sections: spendingData.asMap().entries.map((entry) {
+                final index = entry.key;
+                final subcategoryId = entry.value.key;
+                final amount = entry.value.value;
+                final percentage = (amount / totalSpending) * 100;
+                final isHovered = _hoveredSubcategoryIndex == index;
+
+                return PieChartSectionData(
+                  value: amount,
+                  title: '${percentage.toStringAsFixed(1)}%',
+                  radius: isHovered ? 110 : 100,
+                  titleStyle: TextStyle(
+                    fontSize: isHovered ? 16 : 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  color: colors[index],
+                );
+              }).toList(),
+              sectionsSpace: 2,
+              centerSpaceRadius: 40,
+              pieTouchData: PieTouchData(
+                touchCallback: (FlTouchEvent event, pieTouchResponse) {
+                  setState(() {
+                    if (!event.isInterestedForInteractions ||
+                        pieTouchResponse == null ||
+                        pieTouchResponse.touchedSection == null) {
+                      _hoveredSubcategoryIndex = -1;
+                      return;
+                    }
+                    _hoveredSubcategoryIndex =
+                        pieTouchResponse.touchedSection!.touchedSectionIndex;
+                  });
+                },
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          children: spendingData.asMap().entries.map((entry) {
+            final index = entry.key;
+            final subcategoryId = entry.value.key;
+            final amount = entry.value.value;
+            final subcategoryName =
+                _analyticsData?.subcategories[subcategoryId]?.name ?? 'Unknown';
+
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _hoveredSubcategoryIndex =
+                      _hoveredSubcategoryIndex == index ? -1 : index;
+                });
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: colors[index],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$subcategoryName (\$${amount.toStringAsFixed(2)})',
+                    style: TextStyle(
+                      fontWeight: _hoveredSubcategoryIndex == index
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTransactionsList(int index, bool isCategory) {
+    if (_analyticsData == null) return const SizedBox.shrink();
+
+    final summary = _analyticsData!.summary;
+    final spendingData = isCategory
+        ? summary.categoryBreakdown.entries.where((e) => e.value < 0).toList()
+        : summary.subcategoryBreakdown.entries
+            .where((e) => e.value < 0)
+            .toList();
+
+    if (index >= spendingData.length) return const SizedBox.shrink();
+
+    final id = spendingData[index].key;
+    final transactions = isCategory
+        ? _analyticsData!.getTransactionsForCategory(id)
+        : _analyticsData!.getTransactionsForSubcategory(id);
+
+    final name = isCategory
+        ? _analyticsData!.categories[id]?.name ?? 'Unknown'
+        : _analyticsData!.subcategories[id]?.name ?? 'Unknown';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Transactions in $name',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 16),
+        ...transactions.map((transaction) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        transaction.displayName,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      Text(
+                        '${transaction.effectiveDate.month}/${transaction.effectiveDate.day}/${transaction.effectiveDate.year}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '\$${transaction.amount.abs().toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  List<Color> _generateColors(int count) {
+    final baseColors = [
+      Colors.blue,
+      Colors.red,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.amber,
+      Colors.indigo,
+      Colors.cyan,
+    ];
+
+    if (count <= baseColors.length) {
+      return baseColors.sublist(0, count);
+    }
+
+    // Generate more colors if needed
+    final colors = <Color>[];
+    for (int i = 0; i < count; i++) {
+      final hue = (i * 360 / count) % 360;
+      colors.add(HSLColor.fromAHSL(1, hue, 0.7, 0.5).toColor());
+    }
+    return colors;
   }
 }
 

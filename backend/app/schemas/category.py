@@ -21,7 +21,6 @@ class SubcategoryUpdate(BaseModel):
 class SubcategoryResponse(SubcategoryBase):
     id: int
     category_id: int
-    is_system: bool
     created_at: datetime
     updated_at: datetime
     
@@ -50,7 +49,6 @@ class CategoryUpdate(BaseModel):
 
 class CategoryResponse(CategoryBase):
     id: int
-    is_system: bool
     created_at: datetime
     updated_at: datetime
     subcategories: List[SubcategoryResponse] = []
@@ -62,7 +60,6 @@ class CategoryResponse(CategoryBase):
 # Simplified response without subcategories
 class CategorySimpleResponse(CategoryBase):
     id: int
-    is_system: bool
     created_at: datetime
     updated_at: datetime
     
