@@ -500,8 +500,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
             ],
             Expanded(
               child: Text(
-                subcategoryName ??
-                    'Ready to Assign',
+                subcategoryName ?? 'Ready to Assign',
                 style: TextStyle(
                   fontSize: 14,
                   color: subcategoryName == null

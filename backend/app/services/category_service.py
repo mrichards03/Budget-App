@@ -8,6 +8,7 @@ from app.schemas.category import (
     CategoryCreate, CategoryUpdate, 
     SubcategoryCreate, SubcategoryUpdate
 )
+from app.models.transaction import Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,11 @@ class CategoryService:
             return False
         
         # Check if any transactions are using this category
-        if db_category.transactions:
+        has_transactions = any(
+            db.query(Transaction).filter(Transaction.subcategory_id == subcat.id).first()
+            for subcat in db_category.subcategories
+        )
+        if has_transactions:
             raise HTTPException(
                 status_code=400,
                 detail=f"Cannot delete category '{db_category.name}' because it has associated transactions. "

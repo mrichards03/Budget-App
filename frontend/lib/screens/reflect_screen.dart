@@ -151,7 +151,8 @@ class _ReflectScreenState extends State<ReflectScreen> {
                                   Expanded(
                                     child: _StatCard(
                                       title: 'Total Income',
-                                      amount: (summary?.totalIncome ?? 0.0).abs(),
+                                      amount:
+                                          (summary?.totalIncome ?? 0.0).abs(),
                                       color: Colors.green,
                                       icon: Icons.arrow_downward,
                                     ),
@@ -195,7 +196,8 @@ class _ReflectScreenState extends State<ReflectScreen> {
                                   Expanded(
                                     child: _StatCard(
                                       title: 'Monthly Spending',
-                                      amount: summary?.monthlyAverageSpending ?? 0.0,
+                                      amount: summary?.monthlyAverageSpending ??
+                                          0.0,
                                       color: Colors.orange,
                                       icon: Icons.calendar_month,
                                     ),
@@ -204,7 +206,8 @@ class _ReflectScreenState extends State<ReflectScreen> {
                                   Expanded(
                                     child: _StatCard(
                                       title: 'Daily Spending',
-                                      amount: summary?.dailyAverageSpending ?? 0.0,
+                                      amount:
+                                          summary?.dailyAverageSpending ?? 0.0,
                                       color: Colors.purple,
                                       icon: Icons.today,
                                     ),

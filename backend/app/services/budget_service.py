@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from typing import List, Optional
+from sqlalchemy.orm import Session, joinedload
+from typing import List, Optional, Dict
 from fastapi import HTTPException
 from datetime import datetime
 import logging
@@ -7,7 +7,7 @@ import logging
 from app.models.budget import Budget, SubcategoryBudget
 from app.models.category import Category, Subcategory
 from app.models.transaction import Transaction
-from app.schemas.budget import BudgetCreate, BudgetUpdate, SubcategoryBudgetCreate
+from app.schemas.budget import BudgetCreate, BudgetUpdate, SubcategoryBudgetCreate, SubcategoryBudgetResponse
 
 logger = logging.getLogger(__name__)
 
@@ -19,17 +19,32 @@ class BudgetService:
         """Get all budgets."""
         return db.query(Budget).all()
     
-    def get_budget_by_id(self, db: Session, budget_id: int) -> Optional[Budget]:
-        """Get a specific budget by ID."""
-        return db.query(Budget).filter(Budget.id == budget_id).first()
+    def get_budget_by_id(self, db: Session, budget_id: int, eager_load: bool = True) -> Optional[Budget]:
+        """Get a specific budget by ID with optional eager loading."""
+        query = db.query(Budget)
+        if eager_load:
+            query = query.options(
+                joinedload(Budget.subcategory_budgets)
+                .joinedload(SubcategoryBudget.subcategory)
+                .joinedload(Subcategory.category)
+            )
+        return query.filter(Budget.id == budget_id).first()
     
-    def get_current_budget(self, db: Session) -> Optional[Budget]:
-        """Get the most recent/current budget."""
+    def get_current_budget(self, db: Session, eager_load: bool = True) -> Optional[Budget]:
+        """Get the most recent/current budget with optional eager loading."""
         now = datetime.utcnow()
+        
+        query = db.query(Budget)
+        if eager_load:
+            query = query.options(
+                joinedload(Budget.subcategory_budgets)
+                .joinedload(SubcategoryBudget.subcategory)
+                .joinedload(Subcategory.category)
+            )
         
         # Try to find a budget that's currently active
         # Active = start_date <= now AND (end_date is null OR end_date >= now)
-        budget = db.query(Budget).filter(
+        budget = query.filter(
             Budget.start_date <= now
         ).filter(
             (Budget.end_date == None) | (Budget.end_date >= now)
@@ -37,7 +52,14 @@ class BudgetService:
         
         # If no active budget, return the most recent one
         if not budget:
-            budget = db.query(Budget).order_by(Budget.created_at.desc()).first()
+            query = db.query(Budget)
+            if eager_load:
+                query = query.options(
+                    joinedload(Budget.subcategory_budgets)
+                    .joinedload(SubcategoryBudget.subcategory)
+                    .joinedload(Subcategory.category)
+                )
+            budget = query.order_by(Budget.created_at.desc()).first()
         
         return budget
     
@@ -79,7 +101,8 @@ class BudgetService:
             db.add(db_subcat_budget)
         
         db.commit()
-        db.refresh(db_budget)
+        # Refresh with eager loading
+        db_budget = self.get_budget_by_id(db, db_budget.id, eager_load=True)
         logger.info(f"Created budget: {db_budget.name} (ID: {db_budget.id})")
         return db_budget
     
@@ -110,7 +133,8 @@ class BudgetService:
             setattr(db_budget, field, value)
         
         db.commit()
-        db.refresh(db_budget)
+        # Refresh with eager loading
+        db_budget = self.get_budget_by_id(db, db_budget.id, eager_load=True)
         logger.info(f"Updated budget: {db_budget.name} (ID: {db_budget.id})")
         return db_budget
     
@@ -154,9 +178,9 @@ class BudgetService:
         self,
         db: Session,
         budget_id: int
-    ) -> dict:
+    ) -> Dict[int, float]:
         """Get current spending for each subcategory in a budget."""
-        budget = self.get_budget_by_id(db, budget_id)
+        budget = self.get_budget_by_id(db, budget_id, eager_load=False)
         if not budget:
             return {}
         
@@ -166,7 +190,7 @@ class BudgetService:
             query = db.query(Transaction).filter(
                 Transaction.subcategory_id == subcat_budget.subcategory_id,
                 Transaction.date >= budget.start_date,
-                Transaction.amount < 0  # Only expenses
+                Transaction.amount > 0  # Plaid uses positive values for expenses
             )
             
             # If budget has an end date, filter by it
@@ -174,7 +198,36 @@ class BudgetService:
                 query = query.filter(Transaction.date <= budget.end_date)
             
             transactions = query.all()
-            total_spent = abs(sum(t.amount for t in transactions))
+            total_spent = sum(t.amount for t in transactions)  # Already positive
             spending[subcat_budget.subcategory_id] = total_spent
         
         return spending
+    
+    def build_subcategory_budget_responses(
+        self,
+        budget: Budget,
+        spending_by_subcategory: Dict[int, float]
+    ) -> List[SubcategoryBudgetResponse]:
+        """Build subcategory budget response list from budget with eager-loaded relationships."""
+        subcategory_budgets = []
+        
+        for subcat_budget in budget.subcategory_budgets:
+            # With eager loading, these relationships are already loaded
+            subcategory = subcat_budget.subcategory
+            if subcategory:
+                category = subcategory.category
+                subcategory_budgets.append(
+                    SubcategoryBudgetResponse(
+                        id=subcat_budget.id,
+                        budget_id=subcat_budget.budget_id,
+                        subcategory_id=subcat_budget.subcategory_id,
+                        category_name=category.name if category else "Unknown",
+                        subcategory_name=subcategory.name,
+                        allocated_amount=subcat_budget.allocated_amount,
+                        current_spending=spending_by_subcategory.get(subcat_budget.subcategory_id, 0.0),
+                        created_at=subcat_budget.created_at,
+                        updated_at=subcat_budget.updated_at
+                    )
+                )
+        
+        return subcategory_budgets
