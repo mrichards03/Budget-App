@@ -18,7 +18,14 @@ async def get_accounts(db: Session = Depends(get_db)):
 
 @router.get("/total_balance")
 async def get_total_balance(db: Session = Depends(get_db)):
-    """Get total balance across all accounts"""
+    """Get total balance across all accounts (credit balances are subtracted)"""
     accounts = db.query(Account).all()
-    total = sum(account.current_balance for account in accounts)
+    total = 0.0
+    for account in accounts:
+        # Credit accounts have positive balances when you owe money
+        # So we need to negate them to subtract debt from net worth
+        if account.account_type == 'credit':
+            total -= account.current_balance
+        else:
+            total += account.current_balance
     return {"total_balance": total}

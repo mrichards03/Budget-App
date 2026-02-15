@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict
 from fastapi import HTTPException
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+import calendar
 import logging
 
 from app.models.budget import Budget, SubcategoryBudget
@@ -31,9 +33,12 @@ class BudgetService:
         return query.filter(Budget.id == budget_id).first()
     
     def get_current_budget(self, db: Session, eager_load: bool = True) -> Optional[Budget]:
-        """Get the most recent/current budget with optional eager loading."""
+        """Get or create the current month's budget with optional eager loading."""
         now = datetime.utcnow()
-        
+        return self.get_budget_by_month(db, now.year, now.month, eager_load=eager_load)
+    
+    def get_budget_by_month(self, db: Session, year: int, month: int, eager_load: bool = True, auto_create: bool = True) -> Optional[Budget]:
+        """Get or optionally create a budget for a specific month/year."""
         query = db.query(Budget)
         if eager_load:
             query = query.options(
@@ -42,48 +47,29 @@ class BudgetService:
                 .joinedload(Subcategory.category)
             )
         
-        # Try to find a budget that's currently active
-        # Active = start_date <= now AND (end_date is null OR end_date >= now)
         budget = query.filter(
-            Budget.start_date <= now
-        ).filter(
-            (Budget.end_date == None) | (Budget.end_date >= now)
-        ).order_by(Budget.start_date.desc()).first()
+            Budget.month == month,
+            Budget.year == year
+        ).first()
         
-        # If no active budget, return the most recent one
-        if not budget:
-            query = db.query(Budget)
+        if not budget and auto_create:
+            budget = self._create_monthly_budget(db, month, year)
             if eager_load:
-                query = query.options(
-                    joinedload(Budget.subcategory_budgets)
-                    .joinedload(SubcategoryBudget.subcategory)
-                    .joinedload(Subcategory.category)
-                )
-            budget = query.order_by(Budget.created_at.desc()).first()
+                budget = self.get_budget_by_id(db, budget.id, eager_load=True)
         
         return budget
     
     def create_budget(self, db: Session, budget_data: BudgetCreate) -> Budget:
         """Create a new budget with subcategory allocations."""
-        # Validate that end_date is after start_date if provided
-        if budget_data.end_date and budget_data.end_date <= budget_data.start_date:
-            raise HTTPException(
-                status_code=400,
-                detail="End date must be after start date"
-            )
-        
-        # Create the budget
         db_budget = Budget(
             name=budget_data.name,
-            start_date=budget_data.start_date,
-            end_date=budget_data.end_date
+            month=budget_data.month,
+            year=budget_data.year
         )
         db.add(db_budget)
-        db.flush()  # Flush to get the budget ID
+        db.flush()
         
-        # Create subcategory budget allocations
         for subcat_budget_data in budget_data.subcategory_budgets:
-            # Verify subcategory exists
             subcategory = db.query(Subcategory).filter(
                 Subcategory.id == subcat_budget_data.subcategory_id
             ).first()
@@ -96,12 +82,13 @@ class BudgetService:
             db_subcat_budget = SubcategoryBudget(
                 budget_id=db_budget.id,
                 subcategory_id=subcat_budget_data.subcategory_id,
-                allocated_amount=subcat_budget_data.allocated_amount
+                monthly_assigned=subcat_budget_data.monthly_assigned,
+                monthly_target=subcat_budget_data.monthly_target,
+                total_balance=0.0
             )
             db.add(db_subcat_budget)
         
         db.commit()
-        # Refresh with eager loading
         db_budget = self.get_budget_by_id(db, db_budget.id, eager_load=True)
         logger.info(f"Created budget: {db_budget.name} (ID: {db_budget.id})")
         return db_budget
@@ -117,23 +104,12 @@ class BudgetService:
         if not db_budget:
             return None
         
-        # Update only provided fields
         update_data = budget_data.model_dump(exclude_unset=True)
-        
-        # Validate dates if being updated
-        start_date = update_data.get("start_date", db_budget.start_date)
-        end_date = update_data.get("end_date", db_budget.end_date)
-        if end_date and end_date <= start_date:
-            raise HTTPException(
-                status_code=400,
-                detail="End date must be after start date"
-            )
         
         for field, value in update_data.items():
             setattr(db_budget, field, value)
         
         db.commit()
-        # Refresh with eager loading
         db_budget = self.get_budget_by_id(db, db_budget.id, eager_load=True)
         logger.info(f"Updated budget: {db_budget.name} (ID: {db_budget.id})")
         return db_budget
@@ -159,9 +135,9 @@ class BudgetService:
         self,
         db: Session,
         subcategory_budget_id: int,
-        allocated_amount: float
+        monthly_assigned: float
     ) -> Optional[SubcategoryBudget]:
-        """Update the allocated amount for a subcategory budget."""
+        """Update the monthly assigned amount for a subcategory budget."""
         db_subcat_budget = db.query(SubcategoryBudget).filter(
             SubcategoryBudget.id == subcategory_budget_id
         ).first()
@@ -169,7 +145,7 @@ class BudgetService:
         if not db_subcat_budget:
             return None
         
-        db_subcat_budget.allocated_amount = allocated_amount
+        db_subcat_budget.monthly_assigned = monthly_assigned
         db.commit()
         db.refresh(db_subcat_budget)
         return db_subcat_budget
@@ -212,10 +188,12 @@ class BudgetService:
         subcategory_budgets = []
         
         for subcat_budget in budget.subcategory_budgets:
-            # With eager loading, these relationships are already loaded
             subcategory = subcat_budget.subcategory
             if subcategory:
                 category = subcategory.category
+                monthly_activity = spending_by_subcategory.get(subcat_budget.subcategory_id, 0.0)
+                monthly_available = subcat_budget.monthly_target - monthly_activity
+                
                 subcategory_budgets.append(
                     SubcategoryBudgetResponse(
                         id=subcat_budget.id,
@@ -223,11 +201,85 @@ class BudgetService:
                         subcategory_id=subcat_budget.subcategory_id,
                         category_name=category.name if category else "Unknown",
                         subcategory_name=subcategory.name,
-                        allocated_amount=subcat_budget.allocated_amount,
-                        current_spending=spending_by_subcategory.get(subcat_budget.subcategory_id, 0.0),
+                        monthly_assigned=subcat_budget.monthly_assigned,
+                        monthly_target=subcat_budget.monthly_target,
+                        total_balance=subcat_budget.total_balance,
+                        monthly_activity=monthly_activity,
+                        monthly_available=monthly_available,
                         created_at=subcat_budget.created_at,
                         updated_at=subcat_budget.updated_at
                     )
                 )
         
         return subcategory_budgets
+    
+    def _create_monthly_budget(self, db: Session, month: int, year: int) -> Budget:
+        """Create a new monthly budget with rollover from previous month."""
+        month_start = datetime(year, month, 1)
+        budget_name = month_start.strftime("%B %Y")
+        
+        db_budget = Budget(
+            name=budget_name,
+            month=month,
+            year=year
+        )
+        db.add(db_budget)
+        db.flush()
+        
+        all_subcategories = db.query(Subcategory).all()
+        
+        # Calculate previous month/year
+        if month == 1:
+            prev_month = 12
+            prev_year = year - 1
+        else:
+            prev_month = month - 1
+            prev_year = year
+        
+        previous_budget = db.query(Budget).filter(
+            Budget.month == prev_month,
+            Budget.year == prev_year
+        ).first()
+        
+        previous_balances = {}
+        if previous_budget:
+            spending = self.get_spending_by_subcategory(db, previous_budget.id)
+            for prev_subcat in previous_budget.subcategory_budgets:
+                monthly_activity = spending.get(prev_subcat.subcategory_id, 0.0)
+                monthly_available = prev_subcat.monthly_target - monthly_activity
+                previous_balances[prev_subcat.subcategory_id] = monthly_available
+        
+        for subcategory in all_subcategories:
+            prev_balance = previous_balances.get(subcategory.id, 0.0)
+            
+            db_subcat_budget = SubcategoryBudget(
+                budget_id=db_budget.id,
+                subcategory_id=subcategory.id,
+                monthly_assigned=0.0,
+                monthly_target=0.0,
+                total_balance=prev_balance
+            )
+            db.add(db_subcat_budget)
+        
+        db.commit()
+        logger.info(f"Auto-created monthly budget: {budget_name} ({month}/{year})")
+        return db_budget
+    
+    def update_monthly_target(
+        self,
+        db: Session,
+        subcategory_budget_id: int,
+        monthly_target: float
+    ) -> Optional[SubcategoryBudget]:
+        """Update the monthly target for a subcategory budget."""
+        db_subcat_budget = db.query(SubcategoryBudget).filter(
+            SubcategoryBudget.id == subcategory_budget_id
+        ).first()
+        
+        if not db_subcat_budget:
+            return None
+        
+        db_subcat_budget.monthly_target = monthly_target
+        db.commit()
+        db.refresh(db_subcat_budget)
+        return db_subcat_budget

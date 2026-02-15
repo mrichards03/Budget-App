@@ -11,8 +11,13 @@ class BudgetApiService extends BaseApiService {
     return await get('/api/budgets/current');
   }
 
+  Future<Map<String, dynamic>?> getBudgetByMonth(int year, int month) async {
+    return await get('/api/budgets/$year/$month');
+  }
+
   Future<Map<String, dynamic>> createBudget(
-      Map<String, dynamic> budgetData) async {
+    Map<String, dynamic> budgetData,
+  ) async {
     return await post('/api/budgets', body: budgetData);
   }
 
@@ -23,15 +28,26 @@ class BudgetApiService extends BaseApiService {
   Future<Map<String, dynamic>> updateSubcategoryBudget({
     required int budgetId,
     required int subcategoryBudgetId,
-    required double allocatedAmount,
+    double? monthlyAssigned,
+    double? monthlyTarget,
   }) async {
+    String queryParams = '';
+    if (monthlyAssigned != null) {
+      queryParams += 'monthly_assigned=$monthlyAssigned';
+    }
+    if (monthlyTarget != null) {
+      if (queryParams.isNotEmpty) queryParams += '&';
+      queryParams += 'monthly_target=$monthlyTarget';
+    }
+
     return await put(
-      '/api/budgets/$budgetId/subcategories/$subcategoryBudgetId?allocated_amount=$allocatedAmount',
+      '/api/budgets/$budgetId/subcategories/$subcategoryBudgetId?$queryParams',
     );
   }
 
   Future<Map<String, dynamic>> createBudgetWithAllCategories(
-      String budgetName) async {
+    String budgetName,
+  ) async {
     // First get all categories
     final categoriesList = await _categoryService.getCategories();
 
@@ -42,16 +58,18 @@ class BudgetApiService extends BaseApiService {
         for (var subcategory in category['subcategories']) {
           subcategoryBudgets.add({
             'subcategory_id': subcategory['id'],
-            'allocated_amount': 0.0,
+            'monthly_assigned': 0.0,
           });
         }
       }
     }
 
     // Create budget with all subcategories
+    final now = DateTime.now();
     final budgetData = {
       'name': budgetName,
-      'start_date': DateTime.now().toIso8601String(),
+      'month': now.month,
+      'year': now.year,
       'subcategory_budgets': subcategoryBudgets,
     };
 

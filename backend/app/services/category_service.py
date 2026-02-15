@@ -249,7 +249,7 @@ class CategoryService:
                 "color": "#FF5252",
                 "icon": "receipt",
                 "subcategories": [
-                    {"name": "Rent/Mortgage", "description": "Housing payment"},
+                    {"name": "Rent", "description": "Housing payment"},
                     {"name": "Utilities", "description": "Electric, gas, water"},
                     {"name": "Phone", "description": "Mobile and landline"},
                     {"name": "Internet", "description": "Internet service"},
@@ -266,8 +266,6 @@ class CategoryService:
                     {"name": "Groceries", "description": "Food and household items"},
                     {"name": "Transportation", "description": "Gas, public transit, rideshare"},
                     {"name": "Healthcare", "description": "Medical expenses, prescriptions"},
-                    {"name": "Childcare", "description": "Daycare, babysitting"},
-                    {"name": "Pet Care", "description": "Pet food, vet, supplies"},
                     {"name": "Personal Care", "description": "Haircuts, hygiene products"},
                 ]
             },
@@ -293,8 +291,6 @@ class CategoryService:
                 "subcategories": [
                     {"name": "Emergency Fund", "description": "Rainy day savings"},
                     {"name": "Retirement", "description": "401k, IRA contributions"},
-                    {"name": "Investments", "description": "Stocks, bonds, crypto"},
-                    {"name": "Education", "description": "College fund, courses"},
                 ]
             },
             {
@@ -304,9 +300,7 @@ class CategoryService:
                 "icon": "credit_card",
                 "subcategories": [
                     {"name": "Credit Cards", "description": "Credit card payments"},
-                    {"name": "Student Loans", "description": "Education debt"},
-                    {"name": "Car Loan", "description": "Auto financing"},
-                    {"name": "Personal Loan", "description": "Other loans"},
+                    {"name": "Student Loans", "description": "Education debt"}
                 ]
             },
             {

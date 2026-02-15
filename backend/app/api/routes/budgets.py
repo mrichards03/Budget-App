@@ -28,12 +28,13 @@ async def get_current_budget(db: Session = Depends(get_db)):
     return BudgetResponse(
         id=budget.id,
         name=budget.name,
+        month=budget.month,
+        year=budget.year,
         start_date=budget.start_date,
-        end_date=budget.end_date,
         created_at=budget.created_at,
         updated_at=budget.updated_at,
         subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.allocated_amount for sb in subcategory_budgets)
+        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
     )
 
 
@@ -41,6 +42,35 @@ async def get_current_budget(db: Session = Depends(get_db)):
 async def get_all_budgets(db: Session = Depends(get_db)):
     """Get all budgets without category details."""
     return budget_service.get_all_budgets(db)
+
+
+@router.get("/{year}/{month}", response_model=BudgetResponse)
+async def get_budget_by_month(year: int, month: int, db: Session = Depends(get_db)):
+    """Get or create a budget for a specific month and year."""
+    # Validate month
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="Month must be between 1 and 12")
+    
+    budget = budget_service.get_budget_by_month(db, year, month, eager_load=True, auto_create=True)
+    
+    if not budget:
+        raise HTTPException(status_code=404, detail=f"Budget not found for {year}/{month}")
+    
+    # Build response with current spending
+    spending_by_subcategory = budget_service.get_spending_by_subcategory(db, budget.id)
+    subcategory_budgets = budget_service.build_subcategory_budget_responses(budget, spending_by_subcategory)
+    
+    return BudgetResponse(
+        id=budget.id,
+        name=budget.name,
+        month=budget.month,
+        year=budget.year,
+        start_date=budget.start_date,
+        created_at=budget.created_at,
+        updated_at=budget.updated_at,
+        subcategory_budgets=subcategory_budgets,
+        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
+    )
 
 
 @router.get("/{budget_id}", response_model=BudgetResponse)
@@ -58,12 +88,13 @@ async def get_budget(budget_id: int, db: Session = Depends(get_db)):
     return BudgetResponse(
         id=budget.id,
         name=budget.name,
+        month=budget.month,
+        year=budget.year,
         start_date=budget.start_date,
-        end_date=budget.end_date,
         created_at=budget.created_at,
         updated_at=budget.updated_at,
         subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.allocated_amount for sb in subcategory_budgets)
+        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
     )
 
 
@@ -82,12 +113,13 @@ async def create_budget(
     return BudgetResponse(
         id=db_budget.id,
         name=db_budget.name,
+        month=db_budget.month,
+        year=db_budget.year,
         start_date=db_budget.start_date,
-        end_date=db_budget.end_date,
         created_at=db_budget.created_at,
         updated_at=db_budget.updated_at,
         subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.allocated_amount for sb in subcategory_budgets)
+        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
     )
 
 
@@ -108,12 +140,13 @@ async def update_budget(
     return BudgetResponse(
         id=updated_budget.id,
         name=updated_budget.name,
+        month=updated_budget.month,
+        year=updated_budget.year,
         start_date=updated_budget.start_date,
-        end_date=updated_budget.end_date,
         created_at=updated_budget.created_at,
         updated_at=updated_budget.updated_at,
         subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.allocated_amount for sb in subcategory_budgets)
+        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
     )
 
 
@@ -141,19 +174,26 @@ async def get_budget_subcategories(budget_id: int, db: Session = Depends(get_db)
 async def update_subcategory_budget(
     budget_id: int,
     subcategory_budget_id: int,
-    allocated_amount: float,
+    monthly_assigned: float = None,
+    monthly_target: float = None,
     db: Session = Depends(get_db)
 ):
-    """Update the allocated amount for a specific subcategory in a budget."""
-    # Verify budget exists
+    """Update the monthly assigned amount or monthly target for a specific subcategory in a budget."""
     budget = budget_service.get_budget_by_id(db, budget_id)
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
     
-    # Update subcategory budget
-    updated = budget_service.update_subcategory_budget(db, subcategory_budget_id, allocated_amount)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Subcategory budget not found")
+    if monthly_assigned is not None:
+        updated = budget_service.update_subcategory_budget(db, subcategory_budget_id, monthly_assigned)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Subcategory budget not found")
+        return {"success": True, "monthly_assigned": monthly_assigned}
     
-    return {"success": True, "allocated_amount": allocated_amount}
+    if monthly_target is not None:
+        updated = budget_service.update_monthly_target(db, subcategory_budget_id, monthly_target)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Subcategory budget not found")
+        return {"success": True, "monthly_target": monthly_target}
+    
+    raise HTTPException(status_code=400, detail="Must provide either monthly_assigned or monthly_target")
 

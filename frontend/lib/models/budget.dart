@@ -1,8 +1,9 @@
 class Budget {
   final int? id;
   final String name;
+  final int month;
+  final int year;
   final DateTime startDate;
-  final DateTime? endDate;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final List<SubcategoryBudget>? subcategoryBudgets;
@@ -11,8 +12,9 @@ class Budget {
   Budget({
     this.id,
     required this.name,
+    required this.month,
+    required this.year,
     required this.startDate,
-    this.endDate,
     this.createdAt,
     this.updatedAt,
     this.subcategoryBudgets,
@@ -23,9 +25,9 @@ class Budget {
     return Budget(
       id: json['id'],
       name: json['name'],
+      month: json['month'],
+      year: json['year'],
       startDate: DateTime.parse(json['start_date']),
-      endDate:
-          json['end_date'] != null ? DateTime.parse(json['end_date']) : null,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : null,
@@ -34,8 +36,8 @@ class Budget {
           : null,
       subcategoryBudgets: json['subcategory_budgets'] != null
           ? (json['subcategory_budgets'] as List)
-              .map((c) => SubcategoryBudget.fromJson(c))
-              .toList()
+                .map((c) => SubcategoryBudget.fromJson(c))
+                .toList()
           : null,
       totalAllocated: json['total_allocated']?.toDouble(),
     );
@@ -45,19 +47,21 @@ class Budget {
     return {
       if (id != null) 'id': id,
       'name': name,
-      'start_date': startDate.toIso8601String(),
-      if (endDate != null) 'end_date': endDate!.toIso8601String(),
+      'month': month,
+      'year': year,
       if (subcategoryBudgets != null)
-        'subcategory_budgets':
-            subcategoryBudgets!.map((c) => c.toJson()).toList(),
+        'subcategory_budgets': subcategoryBudgets!
+            .map((c) => c.toJson())
+            .toList(),
     };
   }
 
   Budget copyWith({
     int? id,
     String? name,
+    int? month,
+    int? year,
     DateTime? startDate,
-    DateTime? endDate,
     DateTime? createdAt,
     DateTime? updatedAt,
     List<SubcategoryBudget>? subcategoryBudgets,
@@ -66,8 +70,9 @@ class Budget {
     return Budget(
       id: id ?? this.id,
       name: name ?? this.name,
+      month: month ?? this.month,
+      year: year ?? this.year,
       startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       subcategoryBudgets: subcategoryBudgets ?? this.subcategoryBudgets,
@@ -82,8 +87,11 @@ class SubcategoryBudget {
   final int subcategoryId;
   final String categoryName;
   final String subcategoryName;
-  final double allocatedAmount;
-  final double? currentSpending;
+  final double monthlyAssigned;
+  final double monthlyTarget;
+  final double totalBalance;
+  final double monthlyActivity;
+  final double monthlyAvailable;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -93,8 +101,11 @@ class SubcategoryBudget {
     required this.subcategoryId,
     required this.categoryName,
     required this.subcategoryName,
-    required this.allocatedAmount,
-    this.currentSpending,
+    required this.monthlyAssigned,
+    required this.monthlyTarget,
+    required this.totalBalance,
+    required this.monthlyActivity,
+    required this.monthlyAvailable,
     this.createdAt,
     this.updatedAt,
   });
@@ -106,8 +117,11 @@ class SubcategoryBudget {
       subcategoryId: json['subcategory_id'],
       categoryName: json['category_name'],
       subcategoryName: json['subcategory_name'],
-      allocatedAmount: json['allocated_amount'].toDouble(),
-      currentSpending: json['current_spending']?.toDouble(),
+      monthlyAssigned: json['monthly_assigned'].toDouble(),
+      monthlyTarget: json['monthly_target'].toDouble(),
+      totalBalance: json['total_balance'].toDouble(),
+      monthlyActivity: json['monthly_activity'].toDouble(),
+      monthlyAvailable: json['monthly_available'].toDouble(),
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : null,
@@ -120,7 +134,8 @@ class SubcategoryBudget {
   Map<String, dynamic> toJson() {
     return {
       'subcategory_id': subcategoryId,
-      'allocated_amount': allocatedAmount,
+      'monthly_assigned': monthlyAssigned,
+      'monthly_target': monthlyTarget,
     };
   }
 
@@ -130,8 +145,11 @@ class SubcategoryBudget {
     int? subcategoryId,
     String? categoryName,
     String? subcategoryName,
-    double? allocatedAmount,
-    double? currentSpending,
+    double? monthlyAssigned,
+    double? monthlyTarget,
+    double? totalBalance,
+    double? monthlyActivity,
+    double? monthlyAvailable,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -141,8 +159,11 @@ class SubcategoryBudget {
       subcategoryId: subcategoryId ?? this.subcategoryId,
       categoryName: categoryName ?? this.categoryName,
       subcategoryName: subcategoryName ?? this.subcategoryName,
-      allocatedAmount: allocatedAmount ?? this.allocatedAmount,
-      currentSpending: currentSpending ?? this.currentSpending,
+      monthlyAssigned: monthlyAssigned ?? this.monthlyAssigned,
+      monthlyTarget: monthlyTarget ?? this.monthlyTarget,
+      totalBalance: totalBalance ?? this.totalBalance,
+      monthlyActivity: monthlyActivity ?? this.monthlyActivity,
+      monthlyAvailable: monthlyAvailable ?? this.monthlyAvailable,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

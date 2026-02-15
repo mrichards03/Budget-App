@@ -15,14 +15,33 @@ router = APIRouter()
 async def get_transactions(
     skip: int = 0, 
     limit: int = 100,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
     Get all transactions from the database.
     
-    TODO: Add filtering by date range, category, account, etc.
+    Supports filtering by date range using start_date and end_date parameters (ISO format: YYYY-MM-DD).
     """
-    transactions = db.query(Transaction).offset(skip).limit(limit).all()
+    query = db.query(Transaction)
+    
+    # Apply date filters if provided
+    if start_date:
+        try:
+            start_dt = datetime.fromisoformat(start_date)
+            query = query.filter(Transaction.date >= start_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
+    
+    if end_date:
+        try:
+            end_dt = datetime.fromisoformat(end_date)
+            query = query.filter(Transaction.date <= end_dt)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
+    
+    transactions = query.offset(skip).limit(limit).all()
     return transactions
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)

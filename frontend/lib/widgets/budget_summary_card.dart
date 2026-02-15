@@ -7,6 +7,8 @@ class BudgetSummaryCard extends StatelessWidget {
   final double totalAvailable;
   final double totalBalance;
   final double unassigned;
+  final Widget? leadingWidget;
+  final Widget? trailingWidget;
 
   const BudgetSummaryCard({
     super.key,
@@ -16,6 +18,8 @@ class BudgetSummaryCard extends StatelessWidget {
     required this.totalAvailable,
     required this.totalBalance,
     required this.unassigned,
+    this.leadingWidget,
+    this.trailingWidget,
   });
 
   @override
@@ -26,9 +30,19 @@ class BudgetSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            budgetName,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          Row(
+            children: [
+              if (leadingWidget != null) leadingWidget!,
+              Expanded(
+                child: Text(
+                  budgetName,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+              ),
+              if (trailingWidget != null) trailingWidget!,
+            ],
           ),
           const SizedBox(height: 16),
           Row(

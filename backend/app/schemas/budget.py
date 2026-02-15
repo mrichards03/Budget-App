@@ -5,15 +5,16 @@ from typing import Optional, List
 
 class SubcategoryBudgetBase(BaseModel):
     subcategory_id: int
-    allocated_amount: float
+    monthly_assigned: float
 
 
 class SubcategoryBudgetCreate(SubcategoryBudgetBase):
-    pass
+    monthly_target: float = 0.0
 
 
 class SubcategoryBudgetUpdate(BaseModel):
-    allocated_amount: Optional[float] = None
+    monthly_assigned: Optional[float] = None
+    monthly_target: Optional[float] = None
 
 
 class SubcategoryBudgetResponse(SubcategoryBudgetBase):
@@ -21,7 +22,10 @@ class SubcategoryBudgetResponse(SubcategoryBudgetBase):
     budget_id: int
     category_name: str
     subcategory_name: str
-    current_spending: float = 0.0
+    monthly_target: float
+    total_balance: float
+    monthly_activity: float
+    monthly_available: float
     created_at: datetime
     updated_at: datetime
     
@@ -31,8 +35,8 @@ class SubcategoryBudgetResponse(SubcategoryBudgetBase):
 
 class BudgetBase(BaseModel):
     name: str
-    start_date: datetime
-    end_date: Optional[datetime] = None
+    month: int
+    year: int
 
 
 class BudgetCreate(BudgetBase):
@@ -41,12 +45,13 @@ class BudgetCreate(BudgetBase):
 
 class BudgetUpdate(BaseModel):
     name: Optional[str] = None
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
+    month: Optional[int] = None
+    year: Optional[int] = None
 
 
 class BudgetResponse(BudgetBase):
     id: int
+    start_date: datetime
     created_at: datetime
     updated_at: datetime
     subcategory_budgets: List[SubcategoryBudgetResponse] = []
@@ -58,6 +63,7 @@ class BudgetResponse(BudgetBase):
 
 class BudgetSimpleResponse(BudgetBase):
     id: int
+    start_date: datetime
     created_at: datetime
     updated_at: datetime
     
