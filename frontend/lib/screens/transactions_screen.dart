@@ -15,27 +15,26 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   List<Transaction> _transactions = [];
   bool _isLoading = false;
   String? _errorMessage;
-  
+
   @override
   void initState() {
     super.initState();
     _loadTransactions();
   }
-  
+
   Future<void> _loadTransactions() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-    
+
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
-      final transactionsData = await apiService.getTransactions();
-      
+      final transactionsData = await apiService.transactions.getTransactions();
+
       setState(() {
-        _transactions = transactionsData
-            .map((json) => Transaction.fromJson(json))
-            .toList();
+        _transactions =
+            transactionsData.map((json) => Transaction.fromJson(json)).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -45,7 +44,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       });
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,11 +71,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.inbox, size: 100, color: Colors.grey),
+                          const Icon(Icons.inbox,
+                              size: 100, color: Colors.grey),
                           const SizedBox(height: 20),
                           const Text('No transactions yet'),
                           const SizedBox(height: 10),
-                          const Text('Connect your bank account to get started'),
+                          const Text(
+                              'Connect your bank account to get started'),
                           const SizedBox(height: 20),
                           ElevatedButton(
                             onPressed: _loadTransactions,
@@ -97,11 +98,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
     );
   }
-  
+
   Widget _buildTransactionCard(Transaction transaction) {
     final dateFormat = DateFormat('MMM dd, yyyy');
     final currencyFormat = NumberFormat.currency(symbol: '\$');
-    
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ListTile(
@@ -139,7 +140,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       ),
     );
   }
-  
+
   void _showTransactionDetails(Transaction transaction) {
     showModalBottomSheet(
       context: context,
@@ -155,7 +156,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             const SizedBox(height: 10),
             Text('Amount: \$${transaction.amount}'),
-            Text('Date: ${DateFormat('MMM dd, yyyy').format(transaction.date)}'),
+            Text(
+                'Date: ${DateFormat('MMM dd, yyyy').format(transaction.date)}'),
             if (transaction.category != null)
               Text('Plaid Category: ${transaction.category}'),
             if (transaction.predictedCategory != null)

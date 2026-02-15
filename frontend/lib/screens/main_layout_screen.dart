@@ -35,8 +35,8 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
 
-      final accountsData = await apiService.getAccounts();
-      final institutionsData = await apiService.getInstitutionsList();
+      final accountsData = await apiService.accounts.getAccounts();
+      final institutionsData = await apiService.plaid.getInstitutionsList();
 
       setState(() {
         _accounts = accountsData.map((a) => Account.fromJson(a)).toList();

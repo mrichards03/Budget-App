@@ -34,11 +34,11 @@ class _ReflectScreenState extends State<ReflectScreen> {
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
 
-      final spending = await apiService.getSpendingBreakdown(
+      final spending = await apiService.analytics.getSpendingBreakdown(
         startDate: _startDate,
         endDate: _endDate,
       );
-      final income = await apiService.getIncomeVsSpending(
+      final income = await apiService.analytics.getIncomeVsSpending(
         startDate: _startDate,
         endDate: _endDate,
       );

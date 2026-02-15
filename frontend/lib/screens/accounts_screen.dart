@@ -32,9 +32,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
 
-      final transactionsData = await apiService.getTransactions(limit: 500);
-      final accountsData = await apiService.getAccounts();
-      final totalBalance = await apiService.getTotalBalance();
+      final transactionsData =
+          await apiService.transactions.getTransactions(limit: 500);
+      final accountsData = await apiService.accounts.getAccounts();
+      final totalBalance = await apiService.accounts.getTotalBalance();
 
       setState(() {
         _transactions = transactionsData

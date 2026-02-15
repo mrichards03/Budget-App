@@ -36,9 +36,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       // Load budget and categories in parallel
       final results = await Future.wait([
-        apiService.getCurrentBudget(),
-        apiService.getCategories(),
-        apiService.getTotalBalance(),
+        apiService.budgets.getCurrentBudget(),
+        apiService.categories.getCategories(),
+        apiService.accounts.getTotalBalance(),
       ]);
 
       final budgetData = results[0] as Map<String, dynamic>?;
@@ -65,7 +65,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
       final budgetData =
-          await apiService.createBudgetWithAllCategories(budgetName);
+          await apiService.budgets.createBudgetWithAllCategories(budgetName);
       setState(() {
         _budget = Budget.fromJson(budgetData);
       });
@@ -101,7 +101,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     // Update in background
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
-      await apiService.updateSubcategoryBudget(
+      await apiService.budgets.updateSubcategoryBudget(
         budgetId: _budget!.id!,
         subcategoryBudgetId: subcategoryBudget.id!,
         allocatedAmount: newAmount,

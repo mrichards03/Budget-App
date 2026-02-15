@@ -31,7 +31,7 @@ class _PlaidLinkScreenState extends State<PlaidLinkScreen> {
 
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
-      final institutions = await apiService.getInstitutions();
+      final institutions = await apiService.plaid.getInstitutions();
 
       setState(() {
         _existingInstitutions = institutions;
@@ -113,7 +113,7 @@ class _PlaidLinkScreenState extends State<PlaidLinkScreen> {
       final apiService = Provider.of<ApiService>(context, listen: false);
 
       // Step 1: Get link token from backend (with optional itemId for update mode)
-      final linkToken = await apiService.createLinkToken(itemId: itemId);
+      final linkToken = await apiService.plaid.createLinkToken(itemId: itemId);
 
       // Step 2: Configure Plaid Link
       final configuration = LinkTokenConfiguration(token: linkToken);
@@ -156,7 +156,7 @@ class _PlaidLinkScreenState extends State<PlaidLinkScreen> {
 
     try {
       // Exchange public token for access token
-      await apiService.exchangePublicToken(publicToken, institution);
+      await apiService.plaid.exchangePublicToken(publicToken, institution);
 
       // Call the success callback
       widget.onSuccess();

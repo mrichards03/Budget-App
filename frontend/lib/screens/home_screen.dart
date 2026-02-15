@@ -132,7 +132,7 @@ class MLTab extends StatelessWidget {
             onPressed: () async {
               // TODO: Show loading indicator
               try {
-                final result = await apiService.trainModels();
+                final result = await apiService.ml.trainModels();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
