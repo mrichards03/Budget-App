@@ -11,8 +11,7 @@ from app.schemas.transaction import TransactionResponse
 
 
 class CategorizeTransactionRequest(BaseModel):
-    category_id: int
-    subcategory_id: Optional[int] = None
+    subcategory_id: int
 
 
 router = APIRouter()
@@ -61,41 +60,29 @@ async def manually_categorize_transaction(
     db: Session = Depends(get_db)
 ):
     """
-    Manually assign a budget category and optionally subcategory to a transaction.
-    This replaces the old category field with the new budget category system.
+    Manually assign a budget subcategory to a transaction.
+    The parent category is derived from the subcategory relationship.
     """
     transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     
-    # Verify category exists
-    category = db.query(Category).filter(Category.id == categorize_request.category_id).first()
-    if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
-    
-    # Verify subcategory exists and belongs to the category (if provided)
-    if categorize_request.subcategory_id:
-        subcategory = db.query(Subcategory).filter(
-            Subcategory.id == categorize_request.subcategory_id
-        ).first()
-        if not subcategory:
-            raise HTTPException(status_code=404, detail="Subcategory not found")
-        if subcategory.category_id != categorize_request.category_id:
-            raise HTTPException(
-                status_code=400, 
-                detail="Subcategory does not belong to the specified category"
-            )
+    # Verify subcategory exists
+    subcategory = db.query(Subcategory).filter(
+        Subcategory.id == categorize_request.subcategory_id
+    ).first()
+    if not subcategory:
+        raise HTTPException(status_code=404, detail="Subcategory not found")
     
     # Update transaction
-    transaction.category_id = categorize_request.category_id
     transaction.subcategory_id = categorize_request.subcategory_id
     db.commit()
     
     return {
         "message": "Transaction categorized successfully",
         "transaction_id": transaction_id,
-        "category_id": categorize_request.category_id,
-        "subcategory_id": categorize_request.subcategory_id
+        "subcategory_id": categorize_request.subcategory_id,
+        "category_id": subcategory.category_id
     }
 
 
@@ -108,7 +95,7 @@ async def get_transactions_by_budget_category(
     """
     Get transactions filtered by budget category and optionally subcategory.
     """
-    query = db.query(Transaction).filter(Transaction.category_id == category_id)
+    query = db.query(Transaction).join(Subcategory).filter(Subcategory.category_id == category_id)
     
     if subcategory_id:
         query = query.filter(Transaction.subcategory_id == subcategory_id)

@@ -23,7 +23,6 @@ class Category(Base):
     
     # Relationships
     subcategories = relationship("Subcategory", back_populates="category", cascade="all, delete-orphan")
-    transactions = relationship("Transaction", back_populates="category")
 
 
 class Subcategory(Base):

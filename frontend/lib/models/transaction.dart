@@ -12,7 +12,8 @@ class Transaction {
   final double? predictedConfidence;
   final bool pending;
   final DateTime createdAt;
-  
+  final int? subcategoryId;
+
   Transaction({
     required this.id,
     required this.plaidTransactionId,
@@ -27,8 +28,9 @@ class Transaction {
     this.predictedConfidence,
     required this.pending,
     required this.createdAt,
+    this.subcategoryId,
   });
-  
+
   factory Transaction.fromJson(Map<String, dynamic> json) {
     return Transaction(
       id: json['id'],
@@ -44,6 +46,7 @@ class Transaction {
       predictedConfidence: json['predicted_confidence']?.toDouble(),
       pending: json['pending'],
       createdAt: DateTime.parse(json['created_at']),
+      subcategoryId: json['subcategory_id'],
     );
   }
 }

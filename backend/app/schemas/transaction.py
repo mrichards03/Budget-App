@@ -43,10 +43,8 @@ class TransactionResponse(TransactionBase):
     pending: bool
     created_at: datetime
     
-    # Budget category fields
-    category_id: Optional[int] = None
+    # Budget category field
     subcategory_id: Optional[int] = None
-    budget_category: Optional[CategoryInfo] = None
     budget_subcategory: Optional[SubcategoryInfo] = None
     
     class Config:

@@ -7,8 +7,13 @@ class TransactionApiService extends BaseApiService {
     return await get('/api/transactions/?skip=$skip&limit=$limit');
   }
 
-  Future<void> categorizeTransaction(int transactionId, String category) async {
+  Future<void> categorizeTransaction(
+      int transactionId, int subcategoryId) async {
     await post(
-        '/api/transactions/$transactionId/categorize?category=$category');
+      '/api/transactions/$transactionId/categorize',
+      body: {
+        'subcategory_id': subcategoryId,
+      },
+    );
   }
 }

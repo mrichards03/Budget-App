@@ -6,7 +6,7 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.models.transaction import Transaction
-from app.models.category import Category
+from app.models.category import Category, Subcategory
 
 router = APIRouter()
 
@@ -19,8 +19,10 @@ async def get_spending_breakdown(
 ):
     """Get spending breakdown by category"""
     query = db.query(
-        Transaction.category_id,
+        Subcategory.category_id,
         func.sum(Transaction.amount).label('total')
+    ).join(
+        Transaction, Transaction.subcategory_id == Subcategory.id
     ).filter(Transaction.amount < 0)
     
     if start_date:
@@ -28,20 +30,34 @@ async def get_spending_breakdown(
     if end_date:
         query = query.filter(Transaction.date <= end_date)
     
-    results = query.group_by(Transaction.category_id).all()
+    results = query.group_by(Subcategory.category_id).all()
     
     categories = {}
     total_spending = 0
     
+    # Handle transactions with subcategories
     for category_id, total in results:
-        if category_id:
-            category = db.query(Category).filter(Category.id == category_id).first()
-            category_name = category.name if category else f"Category {category_id}"
-        else:
-            category_name = "Uncategorized"
-        
+        category = db.query(Category).filter(Category.id == category_id).first()
+        category_name = category.name if category else f"Category {category_id}"
         categories[category_name] = float(total)
         total_spending += float(total)
+    
+    # Handle uncategorized transactions
+    uncategorized_total = db.query(
+        func.sum(Transaction.amount)
+    ).filter(
+        Transaction.amount < 0,
+        Transaction.subcategory_id.is_(None)
+    )
+    if start_date:
+        uncategorized_total = uncategorized_total.filter(Transaction.date >= start_date)
+    if end_date:
+        uncategorized_total = uncategorized_total.filter(Transaction.date <= end_date)
+    
+    uncategorized = uncategorized_total.scalar()
+    if uncategorized:
+        categories["Uncategorized"] = float(uncategorized)
+        total_spending += float(uncategorized)
     
     return {
         "categories": categories,
