@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/api_service.dart';
 import '../models/budget.dart';
-import 'create_budget_screen.dart';
+import '../models/category.dart';
+import '../services/api_service.dart';
+import '../widgets/editable_amount.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
@@ -13,7 +14,10 @@ class BudgetScreen extends StatefulWidget {
 
 class _BudgetScreenState extends State<BudgetScreen> {
   Budget? _budget;
+  List<Category>? _categories;
   bool _isLoading = true;
+  String? _error;
+  double _totalBalance = 0.0;
 
   @override
   void initState() {
@@ -24,461 +28,550 @@ class _BudgetScreenState extends State<BudgetScreen> {
   Future<void> _loadBudget() async {
     setState(() {
       _isLoading = true;
+      _error = null;
     });
 
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
-      final budgetData = await apiService.getCurrentBudget();
 
-      if (budgetData != null) {
-        setState(() {
-          _budget = Budget.fromJson(budgetData);
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
+      // Load budget and categories in parallel
+      final results = await Future.wait([
+        apiService.getCurrentBudget(),
+        apiService.getCategories(),
+        apiService.getTotalBalance(),
+      ]);
+
+      final budgetData = results[0] as Map<String, dynamic>?;
+      final categoriesData = results[1] as List<dynamic>;
+      final balance = results[2] as double;
+
       setState(() {
+        if (budgetData != null) {
+          _budget = Budget.fromJson(budgetData);
+        }
+        _categories = categoriesData.map((c) => Category.fromJson(c)).toList();
+        _totalBalance = balance;
         _isLoading = false;
       });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _createNewBudget(String budgetName) async {
+    try {
+      final apiService = Provider.of<ApiService>(context, listen: false);
+      final budgetData =
+          await apiService.createBudgetWithAllCategories(budgetName);
+      setState(() {
+        _budget = Budget.fromJson(budgetData);
+      });
+      if (mounted) {
+        Navigator.of(context).pop(); // Close dialog
+      }
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load budget: $e')),
+          SnackBar(content: Text('Failed to create budget: $e')),
         );
       }
     }
   }
 
-  String _getMonthName(int month) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December'
-    ];
-    return months[month - 1];
+  Future<void> _updateSubcategoryAmount(
+      SubcategoryBudget subcategoryBudget, double newAmount) async {
+    if (_budget == null || subcategoryBudget.id == null) return;
+
+    // Update in memory immediately
+    final updatedSubcategoryBudgets = _budget!.subcategoryBudgets?.map((sb) {
+      if (sb.id == subcategoryBudget.id) {
+        return sb.copyWith(allocatedAmount: newAmount);
+      }
+      return sb;
+    }).toList();
+
+    setState(() {
+      _budget =
+          _budget!.copyWith(subcategoryBudgets: updatedSubcategoryBudgets);
+    });
+
+    // Update in background
+    try {
+      final apiService = Provider.of<ApiService>(context, listen: false);
+      await apiService.updateSubcategoryBudget(
+        budgetId: _budget!.id!,
+        subcategoryBudgetId: subcategoryBudget.id!,
+        allocatedAmount: newAmount,
+      );
+    } catch (e) {
+      // If update fails, show error but keep the optimistic update
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: $e')),
+        );
+      }
+    }
   }
 
-  void _showCreateBudgetDialog(BuildContext context) {
+  void _showCreateBudgetDialog() {
+    final nameController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-          child: CreateBudgetScreen(
-            onBudgetCreated: () {
-              Navigator.of(context).pop();
-              _loadBudget();
-            },
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: Container(
+          width: 500,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'New Budget',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Budget Name',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final name = nameController.text.trim();
+                      if (name.isNotEmpty) {
+                        _createNewBudget(name);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    child: const Text('Create Plan'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
+  Map<String, List<SubcategoryBudget>> _groupByCategory() {
+    if (_budget?.subcategoryBudgets == null) return {};
+
+    final Map<String, List<SubcategoryBudget>> grouped = {};
+    for (var sb in _budget!.subcategoryBudgets!) {
+      if (!grouped.containsKey(sb.categoryName)) {
+        grouped[sb.categoryName] = [];
+      }
+      grouped[sb.categoryName]!.add(sb);
+    }
+    return grouped;
+  }
+
+  double _getCategoryAssigned(List<SubcategoryBudget> subcategories) {
+    return subcategories.fold(0.0, (sum, sb) => sum + sb.allocatedAmount);
+  }
+
+  double _getCategoryActivity(List<SubcategoryBudget> subcategories) {
+    return subcategories.fold(
+        0.0, (sum, sb) => sum + (sb.currentSpending ?? 0.0));
+  }
+
+  double _getCategoryAvailable(List<SubcategoryBudget> subcategories) {
+    final assigned = _getCategoryAssigned(subcategories);
+    final activity = _getCategoryActivity(subcategories);
+    return assigned - activity;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
-    if (_budget == null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.pie_chart_outline, size: 80, color: Colors.grey),
-            const SizedBox(height: 24),
-            Text(
-              'No Budget Found',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create a budget to start managing your finances',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: () => _showCreateBudgetDialog(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Create Budget'),
-              style: FilledButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Error: $_error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadBudget,
+                child: const Text('Retry'),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
-    final totalSpent = _budget!.subcategoryBudgets?.fold<double>(
-          0,
-          (sum, subcategory) => sum + (subcategory.currentSpending ?? 0),
-        ) ??
-        0;
-    final totalAllocated = _budget!.totalAllocated ?? 0;
-    final totalAvailable = totalAllocated - totalSpent;
-    final percentSpent =
-        (totalAllocated > 0) ? (totalSpent / totalAllocated) * 100 : 0;
-
-    // Group subcategories by category
-    final Map<String, List<SubcategoryBudget>> groupedSubcategories = {};
-    if (_budget!.subcategoryBudgets != null) {
-      for (var subcategory in _budget!.subcategoryBudgets!) {
-        if (!groupedSubcategories.containsKey(subcategory.categoryName)) {
-          groupedSubcategories[subcategory.categoryName] = [];
-        }
-        groupedSubcategories[subcategory.categoryName]!.add(subcategory);
-      }
+    if (_budget == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.account_balance_wallet,
+                  size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'No budget found',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Create a budget to start tracking your finances',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _showCreateBudgetDialog,
+                icon: const Icon(Icons.add),
+                label: const Text('Create New Budget'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
+    // Calculate totals
+    final groupedCategories = _groupByCategory();
+    final totalAssigned = _budget!.subcategoryBudgets
+            ?.fold(0.0, (sum, sb) => sum + sb.allocatedAmount) ??
+        0.0;
+    final totalActivity = _budget!.subcategoryBudgets
+            ?.fold(0.0, (sum, sb) => sum + (sb.currentSpending ?? 0.0)) ??
+        0.0;
+    final totalAvailable = totalAssigned - totalActivity;
+    final unassigned = _totalBalance - totalAssigned;
+
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _loadBudget,
-        child: CustomScrollView(
-          slivers: [
-            // Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        children: [
+          // Top summary card
+          Container(
+            padding: const EdgeInsets.all(24),
+            color: Colors.grey[100],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _budget!.name,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Row(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _budget!.name,
-                                style:
-                                    Theme.of(context).textTheme.headlineMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _budget!.endDate != null
-                                    ? '${_budget!.startDate.month}/${_budget!.startDate.day}/${_budget!.startDate.year} - ${_budget!.endDate!.month}/${_budget!.endDate!.day}/${_budget!.endDate!.year}'
-                                    : 'Started ${_budget!.startDate.month}/${_budget!.startDate.day}/${_budget!.startDate.year} (Ongoing)',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.refresh),
-                          onPressed: _loadBudget,
-                        ),
-                      ],
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Assigned',
+                        totalAssigned,
+                        Colors.blue,
+                      ),
                     ),
-                    const SizedBox(height: 24),
-
-                    // Budget Overview Card
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          children: [
-                            // Assigned in [Month]
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Assigned in ${_getMonthName(_budget!.startDate.month)}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: Colors.grey[600],
-                                      ),
-                                ),
-                                Text(
-                                  '\$${totalAllocated.toStringAsFixed(2)}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            // Activity
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Activity',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                        color: Colors.grey[600],
-                                      ),
-                                ),
-                                Text(
-                                  '-\$${totalSpent.toStringAsFixed(2)}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.orange[700],
-                                      ),
-                                ),
-                              ],
-                            ),
-                            const Divider(height: 24),
-                            // Available
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Available',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
-                                Text(
-                                  '\$${totalAvailable.toStringAsFixed(2)}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: totalAvailable < 0
-                                            ? Colors.red
-                                            : totalAvailable == 0
-                                                ? Colors.grey
-                                                : Colors.green[700],
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Activity',
+                        totalActivity,
+                        Colors.orange,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Available',
+                        totalAvailable,
+                        totalAvailable >= 0 ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Total Money',
+                        _totalBalance,
+                        Colors.purple,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Unassigned',
+                        unassigned,
+                        unassigned >= 0 ? Colors.green : Colors.red,
                       ),
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
-
-            // Envelope Budgets Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                child: Column(
-                  children: [
-                    Text(
-                      'Envelope Budgets',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    // Column Headers
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          const Expanded(
-                            flex: 3,
-                            child: Text(
-                              'CATEGORY',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              'ASSIGNED',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              'ACTIVITY',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              'AVAILABLE',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Envelopes List (grouped by category)
-            groupedSubcategories.isEmpty
-                ? const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: Center(
-                        child: Text('No envelopes defined'),
-                      ),
-                    ),
-                  )
-                : SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final categoryName =
-                              groupedSubcategories.keys.elementAt(index);
-                          final subcategories =
-                              groupedSubcategories[categoryName]!;
-
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    categoryName,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  ...subcategories.map((subcategory) {
-                                    final assigned =
-                                        subcategory.allocatedAmount;
-                                    final activity =
-                                        subcategory.currentSpending ?? 0;
-                                    final available = assigned - activity;
-
-                                    return Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 8.0),
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            flex: 3,
-                                            child: Text(
-                                              subcategory.subcategoryName,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyLarge,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              '\$${assigned.toStringAsFixed(2)}',
-                                              textAlign: TextAlign.right,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
-                                            ),
-                                          ),
-                                          Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              '\$${activity.toStringAsFixed(2)}',
-                                              textAlign: TextAlign.right,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium
-                                                  ?.copyWith(
-                                                    color: activity > 0
-                                                        ? Colors.orange[700]
-                                                        : null,
-                                                  ),
-                                            ),
-                                          ),
-                                          Expanded(
-                                            flex: 2,
-                                            child: Text(
-                                              '\$${available.toStringAsFixed(2)}',
-                                              textAlign: TextAlign.right,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w600,
-                                                    color: available < 0
-                                                        ? Colors.red
-                                                        : available == 0
-                                                            ? Colors.grey
-                                                            : Colors.green[700],
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                        childCount: groupedSubcategories.length,
-                      ),
+          ),
+          // Category headers
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.grey[200],
+            child: Row(
+              children: [
+                const SizedBox(width: 40),
+                const Expanded(
+                  flex: 3,
+                  child: Text(
+                    'CATEGORY',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.grey,
                     ),
                   ),
+                ),
+                Expanded(
+                  child: Text(
+                    'ASSIGNED',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'ACTIVITY',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    'AVAILABLE',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Category list
+          Expanded(
+            child: ListView.builder(
+              itemCount: groupedCategories.length,
+              itemBuilder: (context, index) {
+                final categoryName = groupedCategories.keys.elementAt(index);
+                final subcategories = groupedCategories[categoryName]!;
+                return _buildCategoryGroup(categoryName, subcategories);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryItem(String label, double amount, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '\$${amount.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryGroup(
+      String categoryName, List<SubcategoryBudget> subcategories) {
+    return ExpansionTile(
+      initiallyExpanded: true,
+      leading: const Icon(Icons.folder, color: Colors.blue),
+      title: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              categoryName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '\$${_getCategoryAssigned(subcategories).toStringAsFixed(2)}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '\$${_getCategoryActivity(subcategories).toStringAsFixed(2)}',
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '\$${_getCategoryAvailable(subcategories).toStringAsFixed(2)}',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: _getCategoryAvailable(subcategories) >= 0
+                    ? Colors.green
+                    : Colors.red,
+              ),
+            ),
+          ),
+        ],
+      ),
+      children: subcategories.map((sb) => _buildSubcategoryRow(sb)).toList(),
+    );
+  }
+
+  Widget _buildSubcategoryRow(SubcategoryBudget subcategoryBudget) {
+    final available = subcategoryBudget.allocatedAmount -
+        (subcategoryBudget.currentSpending ?? 0.0);
+
+    return Container(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(40, 12, 16, 12),
+        child: Row(
+          children: [
+            Icon(
+              _getIconForSubcategory(subcategoryBudget.subcategoryName),
+              size: 20,
+              color: Colors.grey[700],
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 3,
+              child: Text(subcategoryBudget.subcategoryName),
+            ),
+            Expanded(
+              child: EditableAmount(
+                amount: subcategoryBudget.allocatedAmount,
+                onSave: (newAmount) =>
+                    _updateSubcategoryAmount(subcategoryBudget, newAmount),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                '\$${(subcategoryBudget.currentSpending ?? 0.0).toStringAsFixed(2)}',
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 100),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: available >= 0
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '\$${available.toStringAsFixed(2)}',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color:
+                          available >= 0 ? Colors.green[700] : Colors.red[700],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  IconData _getIconForSubcategory(String subcategoryName) {
+    final name = subcategoryName.toLowerCase();
+    if (name.contains('rent') || name.contains('mortgage')) return Icons.home;
+    if (name.contains('phone')) return Icons.phone;
+    if (name.contains('internet')) return Icons.wifi;
+    if (name.contains('utilit')) return Icons.bolt;
+    if (name.contains('grocer')) return Icons.shopping_cart;
+    if (name.contains('transport')) return Icons.directions_car;
+    if (name.contains('medical')) return Icons.medical_services;
+    if (name.contains('emergency')) return Icons.emergency;
+    if (name.contains('dining')) return Icons.restaurant;
+    if (name.contains('entertainment')) return Icons.movie;
+    if (name.contains('vacation')) return Icons.flight;
+    if (name.contains('subscription')) return Icons.sync;
+    return Icons.category;
   }
 }

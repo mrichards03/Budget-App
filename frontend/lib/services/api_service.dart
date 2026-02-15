@@ -169,6 +169,52 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> updateSubcategoryBudget({
+    required int budgetId,
+    required int subcategoryBudgetId,
+    required double allocatedAmount,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/api/budgets/$budgetId/subcategories/$subcategoryBudgetId')
+          .replace(queryParameters: {
+        'allocated_amount': allocatedAmount.toString(),
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to update subcategory budget: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> createBudgetWithAllCategories(String budgetName) async {
+    // First get all categories
+    final categories = await getCategories();
+    
+    // Build subcategory budgets with all subcategories set to $0
+    final List<Map<String, dynamic>> subcategoryBudgets = [];
+    for (var category in categories) {
+      if (category['subcategories'] != null) {
+        for (var subcategory in category['subcategories']) {
+          subcategoryBudgets.add({
+            'subcategory_id': subcategory['id'],
+            'allocated_amount': 0.0,
+          });
+        }
+      }
+    }
+
+    // Create budget with all subcategories
+    final budgetData = {
+      'name': budgetName,
+      'start_date': DateTime.now().toIso8601String(),
+      'subcategory_budgets': subcategoryBudgets,
+    };
+
+    return await createBudget(budgetData);
+  }
+
   // Category endpoints
   Future<List<dynamic>> getCategories() async {
     final response = await http.get(

@@ -52,6 +52,28 @@ class Budget {
             subcategoryBudgets!.map((c) => c.toJson()).toList(),
     };
   }
+
+  Budget copyWith({
+    int? id,
+    String? name,
+    DateTime? startDate,
+    DateTime? endDate,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    List<SubcategoryBudget>? subcategoryBudgets,
+    double? totalAllocated,
+  }) {
+    return Budget(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      subcategoryBudgets: subcategoryBudgets ?? this.subcategoryBudgets,
+      totalAllocated: totalAllocated ?? this.totalAllocated,
+    );
+  }
 }
 
 class SubcategoryBudget {
@@ -100,5 +122,29 @@ class SubcategoryBudget {
       'subcategory_id': subcategoryId,
       'allocated_amount': allocatedAmount,
     };
+  }
+
+  SubcategoryBudget copyWith({
+    int? id,
+    int? budgetId,
+    int? subcategoryId,
+    String? categoryName,
+    String? subcategoryName,
+    double? allocatedAmount,
+    double? currentSpending,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return SubcategoryBudget(
+      id: id ?? this.id,
+      budgetId: budgetId ?? this.budgetId,
+      subcategoryId: subcategoryId ?? this.subcategoryId,
+      categoryName: categoryName ?? this.categoryName,
+      subcategoryName: subcategoryName ?? this.subcategoryName,
+      allocatedAmount: allocatedAmount ?? this.allocatedAmount,
+      currentSpending: currentSpending ?? this.currentSpending,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }
