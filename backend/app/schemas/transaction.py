@@ -42,6 +42,10 @@ class TransactionResponse(BaseModel):
     is_transfer: bool = False
     transfer_account_id: Optional[int] = None
     
+    # ML prediction fields
+    predicted_subcategory_id: Optional[int] = None
+    predicted_confidence: Optional[float] = None
+    
     # Merchant name (filtered by confidence at ORM level via @property)
     merchant_name: Optional[str] = None
     

@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
+import logging
 
 from app.core.database import get_db
 from app.models.transaction import Transaction
 from app.models.category import Category, Subcategory
 from app.schemas.transaction import TransactionResponse, CategorizeTransactionRequest
+from app.services.ml_service import MLService
 
-
+logger = logging.getLogger(__name__)
 router = APIRouter()
+ml_service = MLService()
 
 @router.get("/", response_model=List[TransactionResponse])
 async def get_transactions(
@@ -71,11 +74,13 @@ async def get_transactions_by_category(
 async def manually_categorize_transaction(
     transaction_id: int,
     categorize_request: CategorizeTransactionRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
     Manually assign a budget subcategory to a transaction.
     The parent category is derived from the subcategory relationship.
+    Triggers ML retraining in background if sufficient labeled data exists.
     """
     transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
     if not transaction:
@@ -88,16 +93,40 @@ async def manually_categorize_transaction(
     if not subcategory:
         raise HTTPException(status_code=404, detail="Subcategory not found")
     
+    # Track if category changed for retraining
+    category_changed = transaction.subcategory_id != categorize_request.subcategory_id
+    
     # Update transaction
     transaction.subcategory_id = categorize_request.subcategory_id
     db.commit()
+    
+    # Trigger retraining in background if enough labeled data exists
+    retrain_triggered = False
+    if category_changed:
+        labeled_count = db.query(Transaction).filter(
+            Transaction.subcategory_id.isnot(None)
+        ).count()
+        
+        if labeled_count >= 50:
+            logger.info(f"Category change detected, scheduling background retraining ({labeled_count} labeled txns)")
+            background_tasks.add_task(_background_retrain, db)
+            retrain_triggered = True
     
     return {
         "message": "Transaction categorized successfully",
         "transaction_id": transaction_id,
         "subcategory_id": categorize_request.subcategory_id,
-        "category_id": subcategory.category_id
+        "category_id": subcategory.category_id,
+        "retrain_triggered": retrain_triggered
     }
+
+def _background_retrain(db: Session):
+    """Background task for retraining ML model."""
+    try:
+        result = ml_service.train_models(db)
+        logger.info(f"Background retraining completed: {result.get('message')}")
+    except Exception as e:
+        logger.error(f"Background retraining failed: {str(e)}")
 
 
 @router.get("/by-category/{category_id}", response_model=List[TransactionResponse])

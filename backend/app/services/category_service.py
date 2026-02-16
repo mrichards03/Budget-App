@@ -253,7 +253,7 @@ class CategoryService:
                     {"name": "Utilities", "description": "Electric, gas, water"},
                     {"name": "Phone", "description": "Mobile and landline"},
                     {"name": "Internet", "description": "Internet service"},
-                    {"name": "Insurance", "description": "Health, car, life insurance"},
+                    {"name": "Car Insurance", "description": "car insurance"},
                     {"name": "Subscriptions", "description": "Streaming services, memberships"},
                 ]
             },
@@ -264,7 +264,7 @@ class CategoryService:
                 "icon": "shopping_cart",
                 "subcategories": [
                     {"name": "Groceries", "description": "Food and household items"},
-                    {"name": "Transportation", "description": "Gas, public transit, rideshare"},
+                    {"name": "Public Transit", "description": "public transit, rideshare"},
                     {"name": "Healthcare", "description": "Medical expenses, prescriptions"},
                     {"name": "Personal Care", "description": "Haircuts, hygiene products"},
                 ]
@@ -281,6 +281,7 @@ class CategoryService:
                     {"name": "Travel", "description": "Vacations, trips"},
                     {"name": "Gifts", "description": "Presents for others"},
                     {"name": "Hobbies", "description": "Sports, crafts, collections"},
+                    {"name": "Cigarettes & Alcohol", "description": ""},
                 ]
             },
             {
@@ -299,7 +300,6 @@ class CategoryService:
                 "color": "#9C27B0",
                 "icon": "credit_card",
                 "subcategories": [
-                    {"name": "Credit Cards", "description": "Credit card payments"},
                     {"name": "Student Loans", "description": "Education debt"}
                 ]
             },
@@ -310,8 +310,6 @@ class CategoryService:
                 "icon": "attach_money",
                 "subcategories": [
                     {"name": "Salary", "description": "Regular paycheck"},
-                    {"name": "Freelance", "description": "Contract work, side hustle"},
-                    {"name": "Investment Income", "description": "Dividends, interest"},
                     {"name": "Refunds", "description": "Tax refunds, returns"},
                     {"name": "Other Income", "description": "Miscellaneous income"},
                 ]
@@ -324,6 +322,15 @@ class CategoryService:
                 "subcategories": [
                     {"name": "Account Transfer", "description": "Transfers between your accounts"},
                     {"name": "Credit Card Payment", "description": "Payments to credit cards"},
+                ]
+            },
+            {
+                "name": "Other",
+                "description": "Miscellaneous",
+                "color": "#607D8B",
+                "icon": "swap_horiz",
+                "subcategories": [
+                    {"name": "Miscellaneous", "description": ""},
                 ]
             },
         ]

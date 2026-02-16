@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import '../models/transaction.dart';
 import '../models/category.dart';
 import '../models/account.dart';
+import '../widgets/transaction_category_field.dart';
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -20,6 +21,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   int? _editingTransactionId;
+  
+  // Sort state
+  String _sortColumn = 'date'; // 'date' or 'account'
+  bool _sortAscending = false; // false = descending (newest first)
 
   @override
   void initState() {
@@ -97,18 +102,116 @@ class _AccountsScreenState extends State<AccountsScreen> {
     return account.name;
   }
 
+  List<Transaction> _getSortedTransactions() {
+    final sorted = List<Transaction>.from(_transactions);
+    
+    if (_sortColumn == 'date') {
+      sorted.sort((a, b) => _sortAscending
+          ? a.effectiveDate.compareTo(b.effectiveDate)
+          : b.effectiveDate.compareTo(a.effectiveDate));
+    } else if (_sortColumn == 'account') {
+      sorted.sort((a, b) {
+        final nameA = _getAccountName(a.accountId);
+        final nameB = _getAccountName(b.accountId);
+        return _sortAscending
+            ? nameA.compareTo(nameB)
+            : nameB.compareTo(nameA);
+      });
+    }
+    
+    return sorted;
+  }
+
+  void _toggleSort(String column) {
+    setState(() {
+      if (_sortColumn == column) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumn = column;
+        _sortAscending = column == 'account'; // Account default to A-Z, Date to newest first
+      }
+    });
+  }
+
   Future<void> _updateCategory(int transactionId, int subcategoryId) async {
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
       await apiService.transactions
           .categorizeTransaction(transactionId, subcategoryId);
 
-      // Reload transactions to get updated data
-      await _loadData();
+      // Update the transaction locally instead of reloading everything
+      setState(() {
+        final index = _transactions.indexWhere((t) => t.id == transactionId);
+        if (index != -1) {
+          // Find the updated transaction data
+          final oldTxn = _transactions[index];
+          _transactions[index] = Transaction(
+            id: oldTxn.id,
+            accountId: oldTxn.accountId,
+            amount: oldTxn.amount,
+            effectiveDate: oldTxn.effectiveDate,
+            displayName: oldTxn.displayName,
+            memo: oldTxn.memo,
+            subcategoryId: subcategoryId, // Updated
+            pending: oldTxn.pending,
+            createdAt: oldTxn.createdAt,
+            isTransfer: oldTxn.isTransfer,
+            transferAccountId: oldTxn.transferAccountId,
+            predictedSubcategoryId: oldTxn.predictedSubcategoryId,
+            predictedConfidence: oldTxn.predictedConfidence,
+          );
+        }
+      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to update category: $e';
       });
+    }
+  }
+
+  Future<void> _trainModel() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final apiService = Provider.of<ApiService>(context, listen: false);
+      final result = await apiService.ml.retrainModel();
+
+      if (!mounted) return;
+
+      if (result['status'] == 'success') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Model trained! Accuracy: ${(result['test_accuracy'] * 100).toStringAsFixed(1)}%',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      } else if (result['status'] == 'insufficient_data') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Training failed: ${result['message']}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -241,6 +344,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
             icon: const Icon(Icons.file_upload, size: 18),
             label: const Text('File Import'),
           ),
+          const SizedBox(width: 12),
+          ElevatedButton.icon(
+            onPressed: _isLoading ? null : _trainModel,
+            icon: const Icon(Icons.psychology, size: 18),
+            label: const Text('Train ML Model'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+          ),
           const Spacer(),
           PopupMenuButton<String>(
             child: Padding(
@@ -285,25 +398,55 @@ class _AccountsScreenState extends State<AccountsScreen> {
       ),
       child: Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 150,
-            child: Text(
-              'ACCOUNT',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.black54,
+            child: InkWell(
+              onTap: () => _toggleSort('account'),
+              child: Row(
+                children: [
+                  const Text(
+                    'ACCOUNT',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  if (_sortColumn == 'account') ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                      size: 14,
+                      color: Colors.black54,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
-          const SizedBox(
+          SizedBox(
             width: 100,
-            child: Text(
-              'DATE',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.black54,
+            child: InkWell(
+              onTap: () => _toggleSort('date'),
+              child: Row(
+                children: [
+                  const Text(
+                    'DATE',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  if (_sortColumn == 'date') ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                      size: 14,
+                      color: Colors.black54,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),
@@ -370,10 +513,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Widget _buildTransactionsList() {
+    final sortedTransactions = _getSortedTransactions();
+    
     return ListView.builder(
-      itemCount: _transactions.length,
+      itemCount: sortedTransactions.length,
       itemBuilder: (context, index) {
-        final transaction = _transactions[index];
+        final transaction = sortedTransactions[index];
         final isEditing = _editingTransactionId == transaction.id;
 
         return _buildTransactionRow(transaction, isEditing);
@@ -478,138 +623,23 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Widget _buildCategoryField(Transaction transaction, bool isEditing) {
-    if (isEditing) {
-      return _buildCategoryDropdown(transaction);
-    }
-
-    final subcategoryName = _getSubcategoryName(transaction.subcategoryId);
-
-    return GestureDetector(
+    return TransactionCategoryField(
+      transaction: transaction,
+      categories: _categories,
+      isEditing: isEditing,
       onTap: () {
         setState(() {
           _editingTransactionId = transaction.id;
         });
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.transparent),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Row(
-          children: [
-            if (subcategoryName != null) ...[
-              Icon(
-                Icons.label,
-                size: 16,
-                color: Colors.grey.shade700,
-              ),
-              const SizedBox(width: 4),
-            ],
-            Expanded(
-              child: Text(
-                subcategoryName ?? 'Ready to Assign',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: subcategoryName == null
-                      ? Colors.grey.shade600
-                      : Colors.black,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
+      onCategorySelected: (subcategoryId) async {
+        await _updateCategory(transaction.id, subcategoryId);
+      },
+      onEditingComplete: () {
+        setState(() {
+          _editingTransactionId = null;
+        });
+      },
     );
-  }
-
-  Widget _buildCategoryDropdown(Transaction transaction) {
-    // Use the subcategory ID from the transaction
-    int? currentValue = transaction.subcategoryId;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.blue),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int?>(
-          value: currentValue,
-          isExpanded: true,
-          hint: const Text('Select Category'),
-          items: [
-            const DropdownMenuItem<int?>(
-              value: null,
-              child: Text('Ready to Assign'),
-            ),
-            ..._buildCategoryMenuItems(),
-          ],
-          onChanged: (subcategoryId) async {
-            if (subcategoryId != null) {
-              await _updateCategory(transaction.id, subcategoryId);
-            }
-            setState(() {
-              _editingTransactionId = null;
-            });
-          },
-        ),
-      ),
-    );
-  }
-
-  List<DropdownMenuItem<int?>> _buildCategoryMenuItems() {
-    final items = <DropdownMenuItem<int?>>[];
-    int headerIndex = 0;
-
-    for (final category in _categories) {
-      // Add category group header (disabled) with unique negative value
-      items.add(
-        DropdownMenuItem<int?>(
-          value: -(headerIndex++ + 1000),
-          enabled: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              category.name,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: Colors.black54,
-              ),
-            ),
-          ),
-        ),
-      );
-
-      // Add subcategories
-      if (category.subcategories != null) {
-        for (final subcategory in category.subcategories!) {
-          items.add(
-            DropdownMenuItem<int?>(
-              value: subcategory.id,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.label,
-                      size: 16,
-                      color: Colors.grey.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(subcategory.name),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-      }
-    }
-
-    return items;
   }
 }

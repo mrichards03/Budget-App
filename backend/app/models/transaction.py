@@ -39,8 +39,9 @@ class Transaction(Base):
     location = Column(JSON, nullable=True)
     
     # ML predicted category (for your custom categorization)
-    predicted_category = Column(String, nullable=True)
-    predicted_confidence = Column(Float, nullable=True)
+    predicted_category = Column(String, nullable=True)  # Legacy field - not used
+    predicted_confidence = Column(Float, nullable=True)  # Confidence score 0.0-1.0
+    predicted_subcategory_id = Column(Integer, ForeignKey("subcategories.id"), nullable=True)  # ML prediction
     
     # User-defined budget category (subcategory contains the parent category)
     subcategory_id = Column(Integer, ForeignKey("subcategories.id"), nullable=True)
@@ -55,7 +56,8 @@ class Transaction(Base):
     account = relationship("Account", back_populates="transactions", foreign_keys=[account_id])
     transfer_account = relationship("Account", foreign_keys=[transfer_account_id])
     merchants = relationship("Merchant", secondary="transaction_merchants", back_populates="transactions")
-    subcategory = relationship("Subcategory", back_populates="transactions")
+    subcategory = relationship("Subcategory", back_populates="transactions", foreign_keys=[subcategory_id], overlaps="predicted_subcategory")
+    predicted_subcategory = relationship("Subcategory", foreign_keys=[predicted_subcategory_id], overlaps="subcategory,transactions")
     
     @property
     def merchant_name(self) -> Optional[str]:

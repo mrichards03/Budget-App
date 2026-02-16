@@ -22,6 +22,23 @@ class MlApiService extends BaseApiService {
   }
 
   Future<Map<String, dynamic>> trainModels() async {
-    return await post('/api/ml/train');
+    return await post('/api/ml/train', body: {});
+  }
+
+  Future<Map<String, dynamic>> retrainModel() async {
+    return await post('/api/ml/retrain', body: {});
+  }
+
+  Future<Map<String, dynamic>> autoCategorizeAll() async {
+    return await post('/api/ml/auto_categorize', body: {});
+  }
+
+  Future<Map<String, dynamic>> getModelStatus() async {
+    return await get('/api/ml/models/status');
+  }
+
+  Future<List<dynamic>> batchPredict(List<int> transactionIds) async {
+    return await post('/api/ml/batch_predict',
+        body: {'transaction_ids': transactionIds});
   }
 }

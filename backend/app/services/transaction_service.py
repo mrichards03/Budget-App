@@ -8,6 +8,7 @@ import logging
 from app.models import PlaidItem, Account, Transaction, Merchant
 from app.models.category import Category, Subcategory
 from app.utils.plaid_helpers import parse_plaid_date, parse_plaid_datetime
+from app.services.ml_service import MLService
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ class TransactionService:
     
     def __init__(self, plaid_client: plaid_api.PlaidApi):
         self.plaid_client = plaid_client
+        self.ml_service = MLService()
     
     def sync_transactions(self, item_id: str, db: Session) -> dict:
         """
@@ -105,13 +107,53 @@ class TransactionService:
             db.commit()
             logger.info("Commit successful!")
 
-            # TODO: Run ML model to predict categories
+            # Auto-categorize new transactions with ML
+            categorized_count = 0
+            auto_assigned_count = 0
+            if added:
+                logger.info(f"Running ML predictions on {len(added)} new transactions")
+                
+                # Get newly added transaction IDs that need categorization
+                uncategorized_ids = []
+                for txn_dict in added:
+                    txn = db.query(Transaction).filter(
+                        Transaction.plaid_transaction_id == txn_dict['transaction_id']
+                    ).first()
+                    if txn and txn.subcategory_id is None:
+                        uncategorized_ids.append(txn.id)
+                
+                if uncategorized_ids:
+                    try:
+                        predictions = self.ml_service.batch_predict(uncategorized_ids, db)
+                        
+                        for pred in predictions:
+                            txn = db.query(Transaction).get(pred['transaction_id'])
+                            if txn and pred.get('subcategory_id'):
+                                confidence = pred['confidence']
+                                
+                                # Always save prediction
+                                txn.predicted_subcategory_id = pred['subcategory_id']
+                                txn.predicted_confidence = confidence
+                                categorized_count += 1
+                                
+                                # Auto-assign if very confident (>= 80%)
+                                if confidence >= 0.8:
+                                    txn.subcategory_id = pred['subcategory_id']
+                                    auto_assigned_count += 1
+                        
+                        db.commit()
+                        logger.info(f"ML predictions: {categorized_count} predicted, {auto_assigned_count} auto-assigned")
+                    except Exception as e:
+                        logger.warning(f"ML prediction failed (continuing without predictions): {str(e)}")
+                        # Don't fail the sync if ML prediction fails
             
             return {
                 "success": True,
                 "added": len(added),
                 "modified": len(modified),
-                "removed": len(removed)
+                "removed": len(removed),
+                "ml_predictions": categorized_count,
+                "ml_auto_assigned": auto_assigned_count
             }
         except plaid.ApiException as e:
             logger.error(f"Plaid API error syncing transactions: {str(e)}")
@@ -165,19 +207,6 @@ class TransactionService:
                 transfer_account_id = matching_transfer.account_id
                 transfer_transaction_id = matching_transfer.plaid_transaction_id
         
-        # Auto-categorize transfers to the "Account Transfer" subcategory
-        subcategory_id = None
-        if is_transfer:
-            # Try to find the "Account Transfer" subcategory
-            transfer_subcategory = db.query(Subcategory).join(
-                Category, Subcategory.category_id == Category.id
-            ).filter(
-                Category.name == "Transfers",
-                Subcategory.name == "Account Transfer"
-            ).first()
-            if transfer_subcategory:
-                subcategory_id = transfer_subcategory.id
-        
         transaction = Transaction(
             plaid_transaction_id=txn['transaction_id'],
             account_id=account_id,
@@ -194,7 +223,7 @@ class TransactionService:
             is_transfer=is_transfer,
             transfer_account_id=transfer_account_id,
             transfer_transaction_id=transfer_transaction_id,
-            subcategory_id=subcategory_id,  # Auto-assign transfer category
+            subcategory_id=None,  # Let ML handle categorization
             payment_meta=txn.get('payment_meta').to_dict() if txn.get('payment_meta') else None,
             location=txn.get('location').to_dict() if txn.get('location') else None
         )

@@ -35,4 +35,4 @@ class Subcategory(Base):
     
     # Relationships
     category = relationship("Category", back_populates="subcategories")
-    transactions = relationship("Transaction", back_populates="subcategory")
+    transactions = relationship("Transaction", back_populates="subcategory", foreign_keys="Transaction.subcategory_id")

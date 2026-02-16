@@ -11,6 +11,10 @@ class Transaction {
   final bool isTransfer;
   final int? transferAccountId;
 
+  // ML prediction fields
+  final int? predictedSubcategoryId;
+  final double? predictedConfidence;
+
   Transaction({
     required this.id,
     required this.accountId,
@@ -23,6 +27,8 @@ class Transaction {
     required this.createdAt,
     this.isTransfer = false,
     this.transferAccountId,
+    this.predictedSubcategoryId,
+    this.predictedConfidence,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
@@ -38,6 +44,25 @@ class Transaction {
       createdAt: DateTime.parse(json['created_at']),
       isTransfer: json['is_transfer'] ?? false,
       transferAccountId: json['transfer_account_id'],
+      predictedSubcategoryId: json['predicted_subcategory_id'],
+      predictedConfidence: json['predicted_confidence']?.toDouble(),
     );
+  }
+
+  /// Returns true if transaction has ML prediction but needs manual review
+  /// (confidence < 80%)
+  bool get needsReview {
+    return subcategoryId == null &&
+        predictedSubcategoryId != null &&
+        predictedConfidence != null &&
+        predictedConfidence! < 0.8;
+  }
+
+  /// Returns true if transaction was auto-assigned by ML (confidence >= 80%)
+  bool get wasAutoAssigned {
+    return subcategoryId != null &&
+        predictedSubcategoryId == subcategoryId &&
+        predictedConfidence != null &&
+        predictedConfidence! >= 0.8;
   }
 }
