@@ -77,7 +77,7 @@ class TransactionCategoryField extends StatelessWidget {
             Expanded(
               child: Text(
                 subcategoryName ?? 'Unknown',
-                style: const TextStyle(fontSize: 14, color: Colors.black),
+                style: const TextStyle(fontSize: 14),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -183,8 +183,7 @@ class TransactionCategoryField extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.blue),
+        border: Border.all(color: Colors.grey),
         borderRadius: BorderRadius.circular(4),
       ),
       child: DropdownButtonHideUnderline(
@@ -227,7 +226,6 @@ class TransactionCategoryField extends StatelessWidget {
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
-                color: Colors.black54,
               ),
             ),
           ),

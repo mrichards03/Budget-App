@@ -218,7 +218,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -391,7 +390,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
         border: Border(
           bottom: BorderSide(color: Colors.grey.shade300),
         ),
@@ -409,7 +407,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black54,
                     ),
                   ),
                   if (_sortColumn == 'account') ...[
@@ -417,7 +414,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     Icon(
                       _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
                       size: 14,
-                      color: Colors.black54,
                     ),
                   ],
                 ],
@@ -435,7 +431,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black54,
                     ),
                   ),
                   if (_sortColumn == 'date') ...[
@@ -443,7 +438,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     Icon(
                       _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
                       size: 14,
-                      color: Colors.black54,
                     ),
                   ],
                 ],
@@ -457,7 +451,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.black54,
               ),
             ),
           ),
@@ -468,7 +461,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.black54,
               ),
             ),
           ),
@@ -479,7 +471,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.black54,
               ),
             ),
           ),
@@ -491,7 +482,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.black54,
               ),
             ),
           ),
@@ -503,7 +493,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.black54,
               ),
             ),
           ),
@@ -534,7 +523,6 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isEditing ? Colors.blue.shade50 : Colors.white,
         border: Border(
           bottom: BorderSide(color: Colors.grey.shade200),
         ),

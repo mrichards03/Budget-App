@@ -35,7 +35,7 @@ class BudgetCategoryGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     return ExpansionTile(
       initiallyExpanded: true,
-      leading: const Icon(Icons.folder, color: Colors.blue),
+      controlAffinity: ListTileControlAffinity.leading,
       title: isWideScreen ? _buildWideScreenTitle() : _buildNarrowScreenTitle(),
       children: subcategories
           .map(
@@ -108,7 +108,7 @@ class BudgetCategoryGroup extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          flex: 3,
+          flex: 2,
           child: Text(
             categoryName,
             style: const TextStyle(fontWeight: FontWeight.bold),

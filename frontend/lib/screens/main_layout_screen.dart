@@ -20,6 +20,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
   List<Account> _accounts = [];
   List<Institution> _institutions = [];
   bool _isLoading = true;
+  bool _isExtended = true;
 
   @override
   void initState() {
@@ -69,6 +70,72 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     }
   }
 
+  Widget _buildAccountsList() {
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12.0,
+                    vertical: 8.0,
+                  ),
+                  child: Text(
+                    'ACCOUNTS',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+                ..._accounts.map((account) => _AccountItem(
+                      name: account.name,
+                      balance: account.currentBalance,
+                      accountType: account.accountType,
+                    )),
+                const SizedBox(height: 12),
+
+                // Add Institution Button
+                OutlinedButton.icon(
+                  onPressed: _navigateToPlaidLink,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add Institution'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+
+                // Add Account Button (only if institutions exist)
+                if (_institutions.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      // TODO: Implement add account from existing institution
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Add account from institution'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.account_balance, size: 18),
+                    label: const Text('Add Account'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+  }
+
   void _navigateToPlaidLink() {
     Navigator.push(
       context,
@@ -82,209 +149,82 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          // Sidebar
-          Container(
-            width: 280,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            child: Column(
-              children: [
-                // Header
-                Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.account_balance_wallet,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 32,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Budget App',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-
-                // Navigation
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 16.0, horizontal: 12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _NavItem(
-                        icon: Icons.pie_chart,
-                        label: 'Budget',
-                        selected: _selectedIndex == 0,
-                        onTap: () => setState(() => _selectedIndex = 0),
-                      ),
-                      const SizedBox(height: 4),
-                      _NavItem(
-                        icon: Icons.insights,
-                        label: 'Reflect',
-                        selected: _selectedIndex == 1,
-                        onTap: () => setState(() => _selectedIndex = 1),
-                      ),
-                      const SizedBox(height: 4),
-                      _NavItem(
-                        icon: Icons.account_balance,
-                        label: 'Accounts',
-                        selected: _selectedIndex == 2,
-                        onTap: () => setState(() => _selectedIndex = 2),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Divider(height: 1),
-
-                // Accounts Section
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : SingleChildScrollView(
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12.0,
-                                    vertical: 8.0,
-                                  ),
-                                  child: Text(
-                                    'ACCOUNTS',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
-                                        ),
-                                  ),
-                                ),
-                                ..._accounts.map((account) => _AccountItem(
-                                      name: account.name,
-                                      balance: account.currentBalance,
-                                      accountType: account.accountType,
-                                    )),
-                                const SizedBox(height: 12),
-
-                                // Add Institution Button
-                                OutlinedButton.icon(
-                                  onPressed: _navigateToPlaidLink,
-                                  icon: const Icon(Icons.add, size: 18),
-                                  label: const Text('Add Institution'),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                ),
-
-                                // Add Account Button (only if institutions exist)
-                                if (_institutions.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  OutlinedButton.icon(
-                                    onPressed: () {
-                                      // TODO: Implement add account from existing institution
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Add account from institution'),
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.account_balance,
-                                        size: 18),
-                                    label: const Text('Add Account'),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 12,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                ),
-              ],
+  Widget _buildSideNav(bool isExtended) {
+    return NavigationRail(
+      extended: isExtended,
+      onDestinationSelected: (int index) {
+        setState(() {
+          _selectedIndex = index;
+        });
+      },
+      labelType: isExtended
+          ? NavigationRailLabelType.none
+          : NavigationRailLabelType.all,
+      selectedIndex: _selectedIndex,
+      destinations: const [
+        NavigationRailDestination(
+            icon: Icon(Icons.pie_chart), label: Text("Budget")),
+        NavigationRailDestination(
+            icon: Icon(Icons.insights), label: Text("Analytics")),
+        NavigationRailDestination(
+            icon: Icon(Icons.account_balance), label: Text("Acccounts")),
+      ],
+      trailing: !isExtended
+          ? null
+          : SizedBox(
+              width: 240, // match NavigationRail's width when extended
+              child: _buildAccountsList(),
             ),
-          ),
-
-          // Main Content
-          Expanded(
-            child: _getSelectedScreen(),
-          ),
-        ],
-      ),
     );
   }
-}
 
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  Widget _buildBottomNav() {
+    return BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: "Budget"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.insights), label: "Analytics"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance), label: "Acccounts"),
+        ],
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? Theme.of(context).colorScheme.secondaryContainer
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: selected
-                    ? Theme.of(context).colorScheme.onSecondaryContainer
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected
-                      ? Theme.of(context).colorScheme.onSecondaryContainer
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-            ],
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen = screenWidth > 1200;
+    if (isWideScreen) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text("Budget App"),
+          leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              setState(() {
+                _isExtended = !_isExtended;
+              });
+            },
           ),
         ),
-      ),
+        body: Row(
+          children: <Widget>[
+            _buildSideNav(_isExtended),
+            Expanded(
+              child: _getSelectedScreen(),
+            ),
+          ],
+        ),
+      );
+    }
+    return Scaffold(
+      body: _getSelectedScreen(),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 }

@@ -17,7 +17,6 @@ class BudgetScreen extends StatefulWidget {
 
 class _BudgetScreenState extends State<BudgetScreen> {
   Budget? _budget;
-  List<Category>? _categories;
   bool _isLoading = true;
   String? _error;
   double _totalBalance = 0.0;
@@ -52,19 +51,12 @@ class _BudgetScreenState extends State<BudgetScreen> {
       );
 
       // Load categories and total balance in parallel
-      final results = await Future.wait([
-        apiService.categories.getCategories(),
-        apiService.accounts.getTotalBalance(),
-      ]);
-
-      final categoriesData = results[0] as List<dynamic>;
-      final balance = results[1] as double;
+      final balance = await apiService.accounts.getTotalBalance();
 
       setState(() {
         if (budgetData != null) {
           _budget = Budget.fromJson(budgetData);
         }
-        _categories = categoriesData.map((c) => Category.fromJson(c)).toList();
         _totalBalance = balance;
         _isLoading = false;
       });
@@ -186,15 +178,18 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
     final Map<String, List<SubcategoryBudget>> grouped = {};
     for (var sb in _budget!.subcategoryBudgets!) {
+      if (sb.categoryName == "Transfers" || sb.categoryName == "Income") {
+        continue;
+      }
       grouped.putIfAbsent(sb.categoryName, () => []).add(sb);
     }
     return grouped;
   }
 
-  double _calculateTotalTarget() =>
+  double _calculateTotalAssigned() =>
       _budget?.subcategoryBudgets?.fold(
         0.0,
-        (sum, sb) => sum! + sb.monthlyTarget,
+        (sum, sb) => sum! + sb.monthlyAssigned,
       ) ??
       0.0;
 
@@ -244,10 +239,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   Widget _buildBudgetView() {
     final groupedCategories = _groupByCategory();
-    final totalTarget = _calculateTotalTarget();
-    final totalActivity = _calculateTotalActivity();
-    final totalAvailable = totalTarget - totalActivity;
-    final unassigned = _totalBalance - totalTarget;
+    final totalAssigned = _calculateTotalAssigned();
+    final unassigned = _totalBalance - totalAssigned;
     final screenWidth = MediaQuery.of(context).size.width;
     final isWideScreen = screenWidth > 1200;
 
@@ -256,10 +249,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
         children: [
           BudgetSummaryCard(
             budgetName: _budget!.name,
-            totalAssigned: totalTarget,
-            totalActivity: totalActivity,
-            totalAvailable: totalAvailable,
-            totalBalance: _totalBalance,
             unassigned: unassigned,
             // Add month navigation
             leadingWidget: IconButton(
@@ -276,7 +265,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
           _buildCategoryHeaders(isWideScreen),
           Expanded(
             child: ListView.builder(
-              itemCount: groupedCategories.length,
+              itemCount:
+                  groupedCategories.length,
               itemBuilder: (context, index) {
                 final categoryName = groupedCategories.keys.elementAt(index);
                 final subcategories = groupedCategories[categoryName]!;
@@ -298,7 +288,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
     if (isWideScreen) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.grey[200],
         child: Row(
           children: [
             const SizedBox(width: 40),
@@ -374,21 +363,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
     } else {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.grey[200],
         child: Row(
           children: [
-            const SizedBox(width: 68), // Space for expand icon + category icon
-            const Expanded(
-              flex: 3,
-              child: Text(
-                'CATEGORY',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
             Expanded(
               child: Text(
                 'AVAILABLE',

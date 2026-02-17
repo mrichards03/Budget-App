@@ -131,71 +131,20 @@ class _SpendingBreakdownTabState extends State<SpendingBreakdownTab> {
                       children: [
                         // Toggle
                         Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () =>
-                                      setState(() => _showSubcategories = true),
-                                  child: Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: _showSubcategories
-                                          ? Colors.grey.shade200
-                                          : Colors.transparent,
-                                      borderRadius: const BorderRadius.only(
-                                        topLeft: Radius.circular(7),
-                                        bottomLeft: Radius.circular(7),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Categories',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontWeight: _showSubcategories
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () => setState(
-                                      () => _showSubcategories = false),
-                                  child: Container(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: !_showSubcategories
-                                          ? Colors.grey.shade200
-                                          : Colors.transparent,
-                                      borderRadius: const BorderRadius.only(
-                                        topRight: Radius.circular(7),
-                                        bottomRight: Radius.circular(7),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Groups',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontWeight: !_showSubcategories
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                            child: SegmentedButton(
+                              segments: const [
+                                ButtonSegment(
+                                    value: true, label: Text("Categories")),
+                                ButtonSegment(
+                                    value: false, label: Text("Groups"))
+                              ],
+                              selected: {_showSubcategories},
+                              onSelectionChanged: (show) {
+                                setState(() {
+                                  _showSubcategories = show.first;                                  
+                                });
+                              },
+                            )),
                         const SizedBox(height: 16),
                         Text(
                           'Categories',

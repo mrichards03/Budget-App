@@ -118,7 +118,7 @@ class _BudgetSubcategoryRowState extends State<BudgetSubcategoryRow> {
             });
           },
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(40, 12, 16, 12),
+            padding: const EdgeInsets.fromLTRB(40, 0, 16, 12),
             child: Row(
               children: [
                 Icon(
@@ -161,7 +161,6 @@ class _BudgetSubcategoryRowState extends State<BudgetSubcategoryRow> {
         if (_isExpanded)
           Container(
             padding: const EdgeInsets.fromLTRB(72, 8, 16, 16),
-            color: Colors.grey[50],
             child: Column(
               children: [
                 _buildExpandedRow(
@@ -212,7 +211,7 @@ class _BudgetSubcategoryRowState extends State<BudgetSubcategoryRow> {
           label,
           style: TextStyle(
             fontSize: 14,
-            color: Colors.grey[700],
+            color: const Color.fromARGB(255, 211, 207, 207),
           ),
         ),
         if (isEditable && editableAmount != null && onSave != null)

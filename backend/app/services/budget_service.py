@@ -218,7 +218,7 @@ class BudgetService:
     def _create_monthly_budget(self, db: Session, month: int, year: int) -> Budget:
         """Create a new monthly budget with rollover from previous month."""
         month_start = datetime(year, month, 1)
-        budget_name = month_start.strftime("%B %Y")
+        budget_name = month_start.strftime("%b %Y")
         
         db_budget = Budget(
             name=budget_name,

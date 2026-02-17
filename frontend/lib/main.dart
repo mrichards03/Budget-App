@@ -13,11 +13,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Provider(
-      create: (_) => ApiService(baseUrl: 'http://localhost:8000'),
+      create: (_) => ApiService(baseUrl: 'http://10.0.0.97:8000'),
       child: MaterialApp(
         title: 'Budget App',
         theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color.fromARGB(255, 176, 6, 139),
+            brightness: Brightness.dark
+            ),
           useMaterial3: true,
         ),
         home: const MainLayoutScreen(),

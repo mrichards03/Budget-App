@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 
 class BudgetSummaryCard extends StatelessWidget {
   final String budgetName;
-  final double totalAssigned;
-  final double totalActivity;
-  final double totalAvailable;
-  final double totalBalance;
   final double unassigned;
   final Widget? leadingWidget;
   final Widget? trailingWidget;
@@ -13,10 +9,6 @@ class BudgetSummaryCard extends StatelessWidget {
   const BudgetSummaryCard({
     super.key,
     required this.budgetName,
-    required this.totalAssigned,
-    required this.totalActivity,
-    required this.totalAvailable,
-    required this.totalBalance,
     required this.unassigned,
     this.leadingWidget,
     this.trailingWidget,
@@ -26,56 +18,29 @@ class BudgetSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      color: Colors.grey[100],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              if (leadingWidget != null) leadingWidget!,
+              Row(
+                children: [
+                  if (leadingWidget != null) leadingWidget!,
+                  Expanded(
+                    flex: 0,
+                    child: Text(
+                      budgetName,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  if (trailingWidget != null) trailingWidget!,
+                ]
+              ),             
               Expanded(
-                child: Text(
-                  budgetName,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (trailingWidget != null) trailingWidget!,
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryItem(
-                  label: 'Assigned',
-                  amount: totalAssigned,
-                  color: Colors.blue,
-                ),
-              ),
-              Expanded(
-                child: _SummaryItem(
-                  label: 'Activity',
-                  amount: totalActivity,
-                  color: Colors.orange,
-                ),
-              ),
-              Expanded(
-                child: _SummaryItem(
-                  label: 'Available',
-                  amount: totalAvailable,
-                  color: totalAvailable >= 0 ? Colors.green : Colors.red,
-                ),
-              ),
-              Expanded(
-                child: _SummaryItem(
-                  label: 'Total Money',
-                  amount: totalBalance,
-                  color: Colors.purple,
-                ),
-              ),
-              Expanded(
+                flex: 0,
                 child: _SummaryItem(
                   label: 'Unassigned',
                   amount: unassigned,
