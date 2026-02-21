@@ -29,9 +29,9 @@ async def get_analytics_data(
     # Query transactions (exclude transfers as they are net-zero)
     query = db.query(Transaction).filter(Transaction.is_transfer == False)
     if start_date:
-        query = query.filter(Transaction.date >= start_date)
+        query = query.filter(Transaction.posted >= start_date)
     if end_date:
-        query = query.filter(Transaction.date <= end_date)
+        query = query.filter(Transaction.posted <= end_date)
     
     transactions = query.all()
     
@@ -141,9 +141,9 @@ async def get_spending_breakdown(
     )
     
     if start_date:
-        query = query.filter(Transaction.date >= start_date)
+        query = query.filter(Transaction.posted >= start_date)
     if end_date:
-        query = query.filter(Transaction.date <= end_date)
+        query = query.filter(Transaction.posted <= end_date)
     
     results = query.group_by(Subcategory.category_id).all()
     
@@ -165,9 +165,9 @@ async def get_spending_breakdown(
         Transaction.subcategory_id.is_(None)
     )
     if start_date:
-        uncategorized_total = uncategorized_total.filter(Transaction.date >= start_date)
+        uncategorized_total = uncategorized_total.filter(Transaction.posted >= start_date)
     if end_date:
-        uncategorized_total = uncategorized_total.filter(Transaction.date <= end_date)
+        uncategorized_total = uncategorized_total.filter(Transaction.posted <= end_date)
     
     uncategorized = uncategorized_total.scalar()
     if uncategorized:
@@ -190,9 +190,9 @@ async def get_income_vs_spending(
     query = db.query(Transaction).filter(Transaction.is_transfer == False)
     
     if start_date:
-        query = query.filter(Transaction.date >= start_date)
+        query = query.filter(Transaction.posted >= start_date)
     if end_date:
-        query = query.filter(Transaction.date <= end_date)
+        query = query.filter(Transaction.posted <= end_date)
     
     transactions = query.all()
     

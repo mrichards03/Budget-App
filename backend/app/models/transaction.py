@@ -7,14 +7,13 @@ from typing import Optional
 class Transaction(Base):
     __tablename__ = "transactions"
     
+    account_id = Column(Integer, ForeignKey("accounts.id"), primary_key=True)
     id = Column(Integer, primary_key=True, index=True)
-    plaid_transaction_id = Column(String, unique=True, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"))
     
     # Basic transaction info
     amount = Column(Float)
-    date = Column(DateTime)
-    authorized_datetime = Column(DateTime, nullable=True)
+    posted = Column(DateTime)
+    transacted_at = Column(DateTime, nullable=True)
     name = Column(String)  # Raw transaction name
     
     # Plaid categories

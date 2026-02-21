@@ -2,10 +2,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.api.routes import transactions, plaid, ml, categories, budgets, accounts, analytics
+from app.api.routes import transactions, ml, categories, budgets, accounts, analytics
 from app.core.database import init_db, get_db
 from app.services.category_service import CategoryService
 import logging
+
+from app.api.routes import simplefin
 
 logging.basicConfig(
     level=logging.DEBUG,  # Show all logs including DEBUG
@@ -43,7 +45,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(plaid.router, prefix="/api/plaid", tags=["plaid"])
+app.include_router(simplefin.router, prefix="/api/simplefin", tags=["simplefin"])
 app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
 app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
 app.include_router(ml.router, prefix="/api/ml", tags=["ml"])

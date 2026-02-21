@@ -6,10 +6,9 @@ from datetime import datetime
 class Account(Base):
     __tablename__ = "accounts"
     
-    id = Column(Integer, primary_key=True, index=True)
-    plaid_account_id = Column(String, unique=True, index=True)
-    plaid_item_id = Column(String, ForeignKey('plaid_items.item_id'), index=True)
-    
+    id = Column(String, primary_key=True)
+    organization_domain = Column(String, ForeignKey('organizations.domain'), primary_key=True)
+
     name = Column(String)
     official_name = Column(String, nullable=True)
     mask = Column(String, nullable=True)
@@ -23,9 +22,11 @@ class Account(Base):
     limit = Column(Float, nullable=True)
     currency_code = Column(String, default="CAD")
     
+    balance_date = Column(DateTime)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationship
-    plaid_item = relationship("PlaidItem", back_populates="accounts")
+    organization = relationship("Organization", back_populates="accounts")
     transactions = relationship("Transaction", back_populates="account", foreign_keys="[Transaction.account_id]")

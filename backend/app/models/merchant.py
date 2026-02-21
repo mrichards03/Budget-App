@@ -6,7 +6,6 @@ class Merchant(Base):
     __tablename__ = "merchants"
     
     id = Column(Integer, primary_key=True, index=True)
-    plaid_entity_id = Column(String, unique=True, index=True, nullable=True)
     
     name = Column(String)
     type = Column(String, nullable=True)  # "merchant", "marketplace", etc.

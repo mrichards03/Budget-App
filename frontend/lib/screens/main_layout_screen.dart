@@ -6,7 +6,6 @@ import '../models/institution.dart';
 import 'budget_screen.dart';
 import 'reflect_screen.dart';
 import 'accounts_screen.dart';
-import 'plaid_link_screen.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -57,6 +56,14 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     }
   }
 
+  Future<void> _connectAccount(String accessCode) async {
+    final apiService = Provider.of<ApiService>(context, listen: false);
+    String msg = await apiService.plaid.connectAccounts(accessCode);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
+  }
+
   Widget _getSelectedScreen() {
     switch (_selectedIndex) {
       case 0:
@@ -98,7 +105,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
                 // Add Institution Button
                 OutlinedButton.icon(
-                  onPressed: _navigateToPlaidLink,
+                  onPressed: _showAccessCodeDialog,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Institution'),
                   style: OutlinedButton.styleFrom(
@@ -108,45 +115,49 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                     ),
                   ),
                 ),
-
-                // Add Account Button (only if institutions exist)
-                if (_institutions.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      // TODO: Implement add account from existing institution
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Add account from institution'),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.account_balance, size: 18),
-                    label: const Text('Add Account'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           );
   }
 
-  void _navigateToPlaidLink() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PlaidLinkScreen(
-          onSuccess: () {
-            _loadData();
-          },
-        ),
-      ),
+  void _showAccessCodeDialog() async {
+    String accessCode = '';
+    final result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enter Access Code'),
+          content: TextField(
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'Access Code'),
+            onChanged: (value) {
+              accessCode = value;
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(accessCode);
+                _connectAccount(accessCode);
+              },
+              child: const Text('Submit'),
+            ),
+          ],
+        );
+      },
     );
+    if (result != null && result.isNotEmpty) {
+      // TODO: Use the access code to link Plaid or call backend
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Access code submitted: ' + result)),
+      );
+
+      _loadData();
+    }
   }
 
   Widget _buildSideNav(bool isExtended) {

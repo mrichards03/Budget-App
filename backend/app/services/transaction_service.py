@@ -5,7 +5,7 @@ from plaid.model.transactions_sync_request import TransactionsSyncRequest
 import plaid
 import logging
 
-from app.models import PlaidItem, Account, Transaction, Merchant
+from app.models import SimplefinItem, Account, Transaction, Merchant
 from app.models.category import Category, Subcategory
 from app.utils.plaid_helpers import parse_plaid_date, parse_plaid_datetime
 from app.services.ml_service import MLService
@@ -16,154 +16,9 @@ logger = logging.getLogger(__name__)
 class TransactionService:
     """Service for handling transaction syncing and management."""
     
-    def __init__(self, plaid_client: plaid_api.PlaidApi):
-        self.plaid_client = plaid_client
+    def __init__(self):
         self.ml_service = MLService()
-    
-    def sync_transactions(self, item_id: str, db: Session) -> dict:
-        """
-        Sync transactions from Plaid for a given item.
-        Returns dict with counts of added, modified, and removed transactions.
-        """
-        plaid_item = db.query(PlaidItem).filter(PlaidItem.item_id == item_id).first()
-        if not plaid_item:
-            logger.error(f"Plaid item not found: {item_id}")
-            return None
-
-        try:
-            access_token = plaid_item.access_token
-
-            # New transaction updates since "cursor"
-            added = []
-            modified = []
-            removed = []  # Removed transaction ids
-            account_lookup = {}
-            has_more = True
-
-            # Iterate through each page of new transaction updates for item
-            while has_more:
-                if plaid_item.cursor:
-                    request = TransactionsSyncRequest(
-                        access_token=access_token,
-                        cursor=plaid_item.cursor,
-                    )
-                else:
-                    request = TransactionsSyncRequest(access_token=access_token)
-                
-                response = self.plaid_client.transactions_sync(request)
-                logger.info(f"Sync iteration - Added: {len(response['added'])}, Modified: {len(response['modified'])}, Removed: {len(response['removed'])}, Has more: {response['has_more']}")
-
-                # Add this page of results
-                added.extend(response['added'])
-                modified.extend(response['modified'])
-                removed.extend(response['removed'])
-
-                has_more = response['has_more']
-
-                # Update account balances
-                for acc in response['accounts']:
-                    account = db.query(Account).filter(Account.plaid_account_id == acc['account_id']).first()
-                    if account:
-                        account.current_balance = acc['balances']['current']
-                        account.available_balance = acc['balances'].get('available')
-                        account.limit = acc['balances'].get('limit')
-                        account_lookup[acc['account_id']] = account.id
-
-                # Update cursor to the next cursor
-                plaid_item.cursor = response['next_cursor']
-
-            # Process added transactions
-            for txn in added:
-                account_id = account_lookup.get(txn['account_id'])            
-                if not account_id:
-                    logger.warning(f"Skipping transaction {txn['transaction_id']} - account not found")
-                    continue
-                
-                try:
-                    self._map_transaction(txn, account_id, db)
-                    logger.debug(f"Successfully mapped transaction {txn['transaction_id']}")
-                except Exception as e:
-                    logger.error(f"Error mapping transaction {txn['transaction_id']}: {str(e)}")
-                    raise  # Re-raise to trigger rollback
-
-            # Process modified transactions
-            for txn in modified:
-                existing = db.query(Transaction).filter(
-                    Transaction.plaid_transaction_id == txn['transaction_id']
-                ).first()
-                
-                if existing:
-                    self._update_transaction(existing, txn, db)
-
-            # Process removed transactions
-            for removed_txn in removed:
-                existing = db.query(Transaction).filter(
-                    Transaction.plaid_transaction_id == removed_txn['transaction_id']
-                ).first()
-                if existing:
-                    db.delete(existing)
-
-            logger.info(f"About to commit. Added: {len(added)}, Modified: {len(modified)}, Removed: {len(removed)}")
-            db.commit()
-            logger.info("Commit successful!")
-
-            # Auto-categorize new transactions with ML
-            categorized_count = 0
-            auto_assigned_count = 0
-            if added:
-                logger.info(f"Running ML predictions on {len(added)} new transactions")
-                
-                # Get newly added transaction IDs that need categorization
-                uncategorized_ids = []
-                for txn_dict in added:
-                    txn = db.query(Transaction).filter(
-                        Transaction.plaid_transaction_id == txn_dict['transaction_id']
-                    ).first()
-                    if txn and txn.subcategory_id is None:
-                        uncategorized_ids.append(txn.id)
-                
-                if uncategorized_ids:
-                    try:
-                        predictions = self.ml_service.batch_predict(uncategorized_ids, db)
-                        
-                        for pred in predictions:
-                            txn = db.query(Transaction).get(pred['transaction_id'])
-                            if txn and pred.get('subcategory_id'):
-                                confidence = pred['confidence']
-                                
-                                # Always save prediction
-                                txn.predicted_subcategory_id = pred['subcategory_id']
-                                txn.predicted_confidence = confidence
-                                categorized_count += 1
-                                
-                                # Auto-assign if very confident (>= 80%)
-                                if confidence >= 0.8:
-                                    txn.subcategory_id = pred['subcategory_id']
-                                    auto_assigned_count += 1
-                        
-                        db.commit()
-                        logger.info(f"ML predictions: {categorized_count} predicted, {auto_assigned_count} auto-assigned")
-                    except Exception as e:
-                        logger.warning(f"ML prediction failed (continuing without predictions): {str(e)}")
-                        # Don't fail the sync if ML prediction fails
-            
-            return {
-                "success": True,
-                "added": len(added),
-                "modified": len(modified),
-                "removed": len(removed),
-                "ml_predictions": categorized_count,
-                "ml_auto_assigned": auto_assigned_count
-            }
-        except plaid.ApiException as e:
-            logger.error(f"Plaid API error syncing transactions: {str(e)}")
-            db.rollback()
-            raise
-        except Exception as e:
-            logger.error(f"Error syncing transactions: {str(e)}")
-            db.rollback()
-            raise
-    
+ 
     def _map_transaction(self, txn: dict, account_id: int, db: Session):
         """Map Plaid transaction to database Transaction model."""
         
@@ -198,7 +53,7 @@ class TransactionService:
                 Account, Transaction.account_id == Account.id
             ).filter(
                 Transaction.account_id != account_id,  # Different account
-                Transaction.date.between(date_range_start, date_range_end),
+                Transaction.posted.between(date_range_start, date_range_end),
                 Transaction.amount.between(opposite_amount - 0.01, opposite_amount + 0.01),  # Allow small variance
                 Transaction.is_transfer == True
             ).first()
@@ -257,18 +112,31 @@ class TransactionService:
     
     def _update_transaction(self, existing: Transaction, txn: dict, db: Session):
         """Update an existing transaction with modified data."""
-        personal_finance_cat = txn.get('personal_finance_category', {})
-        
+
+        existing.posted = datetime.fromtimestamp(txn['posted'])        
         existing.amount = txn['amount']
-        existing.date = parse_plaid_date(txn.get('date'), existing.date)
-        existing.authorized_datetime = parse_plaid_datetime(txn.get('authorized_datetime'))
-        existing.name = txn['name']
-        existing.category_primary = personal_finance_cat.get('primary')
-        existing.category_detailed = personal_finance_cat.get('detailed')
-        existing.category_confidence = personal_finance_cat.get('confidence_level')
+        existing.name = txn['description']
+        existing.transacted_at = datetime.fromtimestamp(float(txn.get('transacted_at'))) if txn.get('transacted_at') is not None else None
         existing.pending = txn.get('pending', False)
-        existing.pending_transaction_id = txn.get('pending_transaction_id')
-        existing.payment_channel = txn.get('payment_channel')
-        existing.payment_meta = txn.get('payment_meta').to_dict() if txn.get('payment_meta') else None
-        existing.location = txn.get('location').to_dict() if txn.get('location') else None
         existing.updated_at = datetime.utcnow()
+
+    def add_transaction(self, transaction: dict, account_id: str, db: Session) -> tuple:
+        try:
+            existing_trans = db.query(Transaction).filter(Transaction.id == int(transaction['id']) and Transaction.account_id == account_id).first()
+            if existing_trans:
+                self._update_transaction(existing_trans, transaction, db)
+            else:
+                new_trans = Transaction(
+                    id = int(transaction['id']),
+                    account_id = account_id,
+                    posted = datetime.fromtimestamp(transaction['posted']),
+                    amount = transaction['amount'],
+                    name  = transaction['description'],
+                    transacted_at = datetime.fromtimestamp(float(transaction.get('transacted_at'))) if transaction.get('transacted_at') is not None else None,
+                    pending = transaction.get('pending', False)
+                )
+                db.add(new_trans)
+                db.flush()
+            return (True, "")
+        except Exception as ex:
+            return (False, f"Failed to add transaction id {transaction['id']}: {ex}")

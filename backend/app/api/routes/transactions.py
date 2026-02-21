@@ -33,14 +33,14 @@ async def get_transactions(
     if start_date:
         try:
             start_dt = datetime.fromisoformat(start_date)
-            query = query.filter(Transaction.date >= start_dt)
+            query = query.filter(Transaction.posted >= start_dt)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid start_date format. Use YYYY-MM-DD")
     
     if end_date:
         try:
             end_dt = datetime.fromisoformat(end_date)
-            query = query.filter(Transaction.date <= end_dt)
+            query = query.filter(Transaction.posted <= end_dt)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid end_date format. Use YYYY-MM-DD")
     
