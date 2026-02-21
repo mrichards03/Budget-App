@@ -50,7 +50,7 @@ async def get_transactions(
 @router.get("/{transaction_id}", response_model=TransactionResponse)
 async def get_transaction(transaction_id: int, db: Session = Depends(get_db)):
     """Get a specific transaction by ID."""
-    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    transaction = db.query(Transaction).filter(Transaction.transaction_id == transaction_id).first()
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return transaction

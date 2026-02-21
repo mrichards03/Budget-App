@@ -29,7 +29,7 @@ class BreakdownStatsCard extends StatelessWidget {
     final breakdown = showSubcategories
         ? summary.subcategoryBreakdown
         : summary.categoryBreakdown;
-    final spendingData = breakdown.entries.where((e) => e.value > 0).toList()
+    final spendingData = breakdown.entries.where((e) => e.value < 0).toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
     final mostFrequentId =

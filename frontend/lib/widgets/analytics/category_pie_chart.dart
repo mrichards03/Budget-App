@@ -23,7 +23,7 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
   @override
   Widget build(BuildContext context) {
     final spendingData =
-        widget.breakdown.entries.where((e) => e.value > 0).toList();
+        widget.breakdown.entries.where((e) => e.value < 0).toList();
 
     if (spendingData.isEmpty) {
       return const Center(
@@ -43,7 +43,7 @@ class _CategoryPieChartState extends State<CategoryPieChart> {
               sections: spendingData.asMap().entries.map((entry) {
                 final index = entry.key;
                 final amount = entry.value.value;
-                final percentage = (amount / widget.totalSpending) * 100;
+                final percentage = (amount / widget.totalSpending).abs() * 100;
                 final isHovered = _hoveredIndex == index;
 
                 return PieChartSectionData(

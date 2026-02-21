@@ -193,9 +193,9 @@ class _SpendingBreakdownTabState extends State<SpendingBreakdownTab> {
         ? summary.subcategoryBreakdown
         : summary.categoryBreakdown;
 
-    final spendingData = breakdown.entries.where((e) => e.value > 0).toList();
+    final spendingData = breakdown.entries.where((e) => e.value < 0).toList();
     final totalSpending =
-        spendingData.fold<double>(0, (sum, e) => sum + e.value);
+        spendingData.fold<double>(0, (sum, e) => sum + e.value.abs());
 
     return CategoryPieChart(
       breakdown: breakdown,
@@ -209,6 +209,6 @@ class _SpendingBreakdownTabState extends State<SpendingBreakdownTab> {
     final breakdown = _showSubcategories
         ? summary.subcategoryBreakdown
         : summary.categoryBreakdown;
-    return breakdown.entries.where((e) => e.value > 0).length;
+    return breakdown.entries.where((e) => e.value < 0).length;
   }
 }

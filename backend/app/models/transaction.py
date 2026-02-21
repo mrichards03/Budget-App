@@ -6,9 +6,10 @@ from typing import Optional
 
 class Transaction(Base):
     __tablename__ = "transactions"
+    id = Column(Integer, index=True, primary_key=True)
     
-    account_id = Column(String, ForeignKey("accounts.id"), primary_key=True)
-    id = Column(Integer, primary_key=True)
+    account_id = Column(String, ForeignKey("accounts.id"))
+    transaction_id = Column(Integer)
     
     # Basic transaction info
     amount = Column(Float)

@@ -107,7 +107,7 @@ async def auto_categorize_all(db: Session = Depends(get_db)):
         if not uncategorized:
             return {"message": "No uncategorized transactions found", "categorized": 0}
         
-        transaction_ids = [t.id for t in uncategorized]
+        transaction_ids = [t.transaction_id for t in uncategorized]
         predictions = ml_service.batch_predict(transaction_ids, db)
         
         # Apply predictions

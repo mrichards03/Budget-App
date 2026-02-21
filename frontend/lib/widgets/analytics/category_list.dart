@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/analytics.dart';
+import 'dart:math' as math;
 
 class CategoryList extends StatelessWidget {
   final AnalyticsResponse analyticsData;
@@ -20,19 +21,19 @@ class CategoryList extends StatelessWidget {
         ? summary.subcategoryBreakdown
         : summary.categoryBreakdown;
 
-    final spendingData = breakdown.entries.where((e) => e.value > 0).toList()
+    final spendingData = breakdown.entries.where((e) => e.value < 0).toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
     final totalSpending =
-        spendingData.fold<double>(0, (sum, e) => sum + e.value);
+        spendingData.fold<double>(0, (sum, e) => sum + e.value.abs());
 
     return Column(
       children: spendingData.asMap().entries.map((entry) {
         final index = entry.key;
         final id = entry.value.key;
-        final amount = entry.value.value;
+        final amount = entry.value.value.abs();
         final percentage =
-            totalSpending != 0 ? (amount / totalSpending) * 100 : 0;
+            totalSpending != 0 ? (amount / totalSpending).abs() * 100 : 0;
         final name = showSubcategories
             ? (analyticsData.subcategories[id]?.name ?? 'Unknown')
             : (analyticsData.categories[id]?.name ?? 'Unknown');

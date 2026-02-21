@@ -356,7 +356,7 @@ class MLService:
             
             # Fetch transactions
             transactions = db.query(Transaction).filter(
-                Transaction.id.in_(transaction_ids)
+                Transaction.transaction_id.in_(transaction_ids)
             ).all()
             
             if not transactions:
@@ -381,7 +381,7 @@ class MLService:
                 # Only add result if category still exists
                 if category_id:
                     results.append({
-                        "transaction_id": txn.id,
+                        "transaction_id": txn.transaction_id,
                         "subcategory_id": int(category_id),
                         "confidence": float(probs[top_idx])
                     })
