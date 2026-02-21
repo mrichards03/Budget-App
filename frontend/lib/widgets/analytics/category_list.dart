@@ -32,7 +32,7 @@ class CategoryList extends StatelessWidget {
         final id = entry.value.key;
         final amount = entry.value.value;
         final percentage =
-            totalSpending > 0 ? (amount / totalSpending) * 100 : 0;
+            totalSpending != 0 ? (amount / totalSpending) * 100 : 0;
         final name = showSubcategories
             ? (analyticsData.subcategories[id]?.name ?? 'Unknown')
             : (analyticsData.categories[id]?.name ?? 'Unknown');

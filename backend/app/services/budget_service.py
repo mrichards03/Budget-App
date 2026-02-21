@@ -166,8 +166,8 @@ class BudgetService:
             # Exclude transfers as they are net-zero between accounts
             query = db.query(Transaction).filter(
                 Transaction.subcategory_id == subcat_budget.subcategory_id,
-                Transaction.transacted_at >= budget.start_date,
-                Transaction.amount > 0,  # Plaid uses positive values for expenses
+                Transaction.posted >= budget.start_date,
+                Transaction.amount < 0,  # TODO check if true for cc
                 Transaction.is_transfer == False  # Exclude transfers
             )
             
@@ -176,7 +176,7 @@ class BudgetService:
                 query = query.filter(Transaction.posted <= budget.end_date)
             
             transactions = query.all()
-            total_spent = sum(t.amount for t in transactions)  # Already positive
+            total_spent = abs(sum(t.amount for t in transactions)) 
             spending[subcat_budget.subcategory_id] = total_spent
         
         return spending

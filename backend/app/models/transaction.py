@@ -7,32 +7,22 @@ from typing import Optional
 class Transaction(Base):
     __tablename__ = "transactions"
     
-    account_id = Column(Integer, ForeignKey("accounts.id"), primary_key=True)
-    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(String, ForeignKey("accounts.id"), primary_key=True)
+    id = Column(Integer, primary_key=True)
     
     # Basic transaction info
     amount = Column(Float)
     posted = Column(DateTime)
     transacted_at = Column(DateTime, nullable=True)
     name = Column(String)  # Raw transaction name
-    
-    # Plaid categories
-    category_primary = Column(String, nullable=True)
-    category_detailed = Column(String, nullable=True)
-    category_confidence = Column(String, nullable=True)
-    
+        
     # Transaction metadata
     pending = Column(Boolean, default=False)
-    pending_transaction_id = Column(String, nullable=True)
-    payment_channel = Column(String, nullable=True)
 
     # Transfer detection - important for credit card payments, account transfers
     is_transfer = Column(Boolean, default=False)
     transfer_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)  # Link to other account
     transfer_transaction_id = Column(String, nullable=True)  # Plaid's transfer matching ID
-    
-    # Payment metadata (for transfers, bill payments)
-    payment_meta = Column(JSON, nullable=True)  # Store full payment_meta object
     
     # Location (store as JSON)
     location = Column(JSON, nullable=True)

@@ -21,7 +21,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   int? _editingTransactionId;
-  
+
   // Sort state
   String _sortColumn = 'date'; // 'date' or 'account'
   bool _sortAscending = false; // false = descending (newest first)
@@ -68,9 +68,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
       final account = _accounts.firstWhere((a) => a.id == t.accountId,
           orElse: () => _accounts.first);
       if (account.accountType == 'credit') {
-        return sum - t.amount;
+        return sum + t.amount; //TODO check for cc
       }
-      return sum + t.amount;
+      return sum - t.amount;
     });
   }
 
@@ -85,17 +85,17 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   double get _clearedBalance => _workingBalance - _unclearedBalance;
 
-  String _getAccountName(int accountId) {
+  String _getAccountName(String accountId) {
     final account = _accounts.firstWhere(
       (a) => a.id == accountId,
       orElse: () => Account(
-        id: 0,
-        plaidAccountId: '',
-        plaidItemId: '',
+        id: '0',
+        organizationDomain: 'Unknown',
+        currencyCode: 'CAD',
         name: 'Unknown',
         accountType: '',
-        accountSubtype: '',
         currentBalance: 0,
+        balanceDate: DateTime.now(),
         createdAt: DateTime.now(),
       ),
     );
@@ -104,7 +104,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   List<Transaction> _getSortedTransactions() {
     final sorted = List<Transaction>.from(_transactions);
-    
+
     if (_sortColumn == 'date') {
       sorted.sort((a, b) => _sortAscending
           ? a.effectiveDate.compareTo(b.effectiveDate)
@@ -113,12 +113,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
       sorted.sort((a, b) {
         final nameA = _getAccountName(a.accountId);
         final nameB = _getAccountName(b.accountId);
-        return _sortAscending
-            ? nameA.compareTo(nameB)
-            : nameB.compareTo(nameA);
+        return _sortAscending ? nameA.compareTo(nameB) : nameB.compareTo(nameA);
       });
     }
-    
+
     return sorted;
   }
 
@@ -128,7 +126,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
         _sortAscending = !_sortAscending;
       } else {
         _sortColumn = column;
-        _sortAscending = column == 'account'; // Account default to A-Z, Date to newest first
+        _sortAscending =
+            column == 'account'; // Account default to A-Z, Date to newest first
       }
     });
   }
@@ -150,7 +149,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
             accountId: oldTxn.accountId,
             amount: oldTxn.amount,
             effectiveDate: oldTxn.effectiveDate,
-            displayName: oldTxn.displayName,
+            name: oldTxn.name,
             memo: oldTxn.memo,
             subcategoryId: subcategoryId, // Updated
             pending: oldTxn.pending,
@@ -412,7 +411,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   if (_sortColumn == 'account') ...[
                     const SizedBox(width: 4),
                     Icon(
-                      _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                      _sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
                       size: 14,
                     ),
                   ],
@@ -436,7 +437,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   if (_sortColumn == 'date') ...[
                     const SizedBox(width: 4),
                     Icon(
-                      _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                      _sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
                       size: 14,
                     ),
                   ],
@@ -503,7 +506,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   Widget _buildTransactionsList() {
     final sortedTransactions = _getSortedTransactions();
-    
+
     return ListView.builder(
       itemCount: sortedTransactions.length,
       itemBuilder: (context, index) {
@@ -518,8 +521,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Widget _buildTransactionRow(Transaction transaction, bool isEditing) {
     final dateFormat = DateFormat('MM/dd/yyyy');
     final currencyFormat = NumberFormat.currency(symbol: '\$');
-    final isOutflow = transaction.amount > 0;
-    final isInflow = transaction.amount < 0;
+    final isOutflow = transaction.amount < 0; //TODO check for cc
+    final isInflow = transaction.amount > 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -547,7 +550,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
           Expanded(
             flex: 2,
             child: Text(
-              transaction.displayName,
+              transaction.name,
               style: const TextStyle(fontSize: 14),
               overflow: TextOverflow.ellipsis,
             ),

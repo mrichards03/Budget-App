@@ -26,7 +26,6 @@ class MLService:
     1. Transaction name text (TF-IDF) - PRIMARY SIGNAL
     2. Transaction amount patterns - STRONG SIGNAL
     3. Temporal patterns (day of week/month) - MODERATE SIGNAL
-    4. Plaid categories - WEAK SIGNAL (unreliable, but may help for big merchants)
     """
     
     def __init__(self):
@@ -70,8 +69,6 @@ class MLService:
         2. Amount (scaled) - different categories have different price ranges
         3. Day of week (0-6) - helps detect recurring subscriptions
         4. Day of month (1-31) - helps detect bill cycles
-        5. Plaid category_primary (one-hot, optional) - weak but might help
-        6. Category confidence (0-1) - Plaid's confidence enum converted to float
         
         Args:
             transactions: List of Transaction objects
@@ -95,15 +92,11 @@ class MLService:
         # 2. NUMERICAL FEATURES: Amount and temporal patterns
         numerical_data = []
         for t in transactions:
-            # Convert Plaid's confidence enum to numerical score
-            confidence_map = {'HIGH': 1.0, 'MEDIUM': 0.5, 'LOW': 0.2, 'VERY_HIGH': 1.0}
-            confidence_score = confidence_map.get(t.category_confidence, 0.3)  # Default 0.3 if None
             
             numerical_data.append([
                 abs(float(t.amount)),  # Use absolute value (expenses are negative)
                 t.date.weekday(),  # 0=Monday, 6=Sunday
                 t.date.day,  # Day of month
-                confidence_score  # Plaid's confidence as 0-1 score
             ])
         
         numerical_features = np.array(numerical_data)
@@ -112,29 +105,12 @@ class MLService:
             numerical_features = self.scaler.fit_transform(numerical_features)
         else:
             numerical_features = self.scaler.transform(numerical_features)
-        
-        # 3. CATEGORICAL FEATURES (WEAK): Plaid categories as optional signal
-        plaid_primary = [t.category_primary or 'UNKNOWN' for t in transactions]
-        
-        df_categorical = pd.DataFrame({'primary': plaid_primary})
-        
-        if fit:
-            categorical_features = pd.get_dummies(df_categorical, sparse=True)
-            self.categorical_columns = categorical_features.columns.tolist()
-            logger.info(f"Created {len(self.categorical_columns)} Plaid category features")
-        else:
-            categorical_features = pd.get_dummies(df_categorical, sparse=True)
-            # Align with training columns
-            for col in self.categorical_columns:
-                if col not in categorical_features.columns:
-                    categorical_features[col] = 0
-            categorical_features = categorical_features[self.categorical_columns]
-        
+                      
+                
         # 4. COMBINE ALL FEATURES
         combined_features = hstack([
             text_features,  # ~200 features (most important)
             numerical_features,  # 4 features
-            categorical_features.sparse.to_coo()  # ~10-20 features (least important)
         ])
         
         return combined_features
@@ -270,8 +246,6 @@ class MLService:
         transaction_text: str, 
         amount: float,
         date,
-        category_primary: Optional[str] = None,
-        category_confidence: Optional[str] = None,  # Plaid enum: HIGH/MEDIUM/LOW
         db: Session = None  # Need for name-to-ID mapping
     ) -> Dict:
         """
@@ -311,19 +285,15 @@ class MLService:
             
             # Create temporary transaction object for feature extraction
             class TempTransaction:
-                def __init__(self, name, amount, date, cat_primary, cat_conf):
+                def __init__(self, name, amount, date):
                     self.name = name
                     self.amount = amount
                     self.date = date
-                    self.category_primary = cat_primary
-                    self.category_confidence = cat_conf  # Enum string
             
             temp_txn = TempTransaction(
                 transaction_text, 
                 amount, 
-                date,
-                category_primary,
-                category_confidence
+                date
             )
             
             # Extract features

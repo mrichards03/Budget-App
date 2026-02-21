@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../models/account.dart';
-import '../models/institution.dart';
 import 'budget_screen.dart';
 import 'reflect_screen.dart';
 import 'accounts_screen.dart';
@@ -17,7 +16,6 @@ class MainLayoutScreen extends StatefulWidget {
 class _MainLayoutScreenState extends State<MainLayoutScreen> {
   int _selectedIndex = 0;
   List<Account> _accounts = [];
-  List<Institution> _institutions = [];
   bool _isLoading = true;
   bool _isExtended = true;
 
@@ -36,12 +34,9 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
       final apiService = Provider.of<ApiService>(context, listen: false);
 
       final accountsData = await apiService.accounts.getAccounts();
-      final institutionsData = await apiService.plaid.getInstitutionsList();
 
       setState(() {
         _accounts = accountsData.map((a) => Account.fromJson(a)).toList();
-        _institutions =
-            institutionsData.map((i) => Institution.fromJson(i)).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -58,7 +53,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
   Future<void> _connectAccount(String accessCode) async {
     final apiService = Provider.of<ApiService>(context, listen: false);
-    String msg = await apiService.plaid.connectAccounts(accessCode);
+    String msg = await apiService.simpleFin.connectAccounts(accessCode);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg)),
     );
@@ -243,12 +238,12 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 class _AccountItem extends StatelessWidget {
   final String name;
   final double balance;
-  final String accountType;
+  final String? accountType;
 
   const _AccountItem({
     required this.name,
     required this.balance,
-    required this.accountType,
+    this.accountType,
   });
 
   @override

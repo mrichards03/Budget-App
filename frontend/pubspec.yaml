@@ -1,5 +1,5 @@
 name: budget_app
-description: A budget tracking app with Plaid integration and ML-powered categorization.
+description: A budget tracking app with SimpleFin integration and ML-powered categorization.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -15,10 +15,7 @@ dependencies:
   
   # State management (choose one or use what you prefer)
   provider: ^6.1.1
-  
-  # Plaid integration
-  plaid_flutter: ^4.1.0
-  
+    
   # Local storage
   shared_preferences: ^2.2.2
   

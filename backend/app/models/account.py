@@ -10,8 +10,6 @@ class Account(Base):
     organization_domain = Column(String, ForeignKey('organizations.domain'), primary_key=True)
 
     name = Column(String)
-    official_name = Column(String, nullable=True)
-    mask = Column(String, nullable=True)
 
     account_type = Column(String)  # depository, credit, etc.
     account_subtype = Column(String)  # checking, savings, credit card, etc.
@@ -19,7 +17,6 @@ class Account(Base):
 
     current_balance = Column(Float, default=0.0)
     available_balance = Column(Float, nullable=True)
-    limit = Column(Float, nullable=True)
     currency_code = Column(String, default="CAD")
     
     balance_date = Column(DateTime)

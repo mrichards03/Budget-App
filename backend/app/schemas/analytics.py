@@ -26,5 +26,5 @@ class AnalyticsResponse(BaseModel):
     transactions: List[TransactionResponse]
     categories: Dict[int, CategoryInfo]  # category_id -> category
     subcategories: Dict[int, SubcategoryInfo]  # subcategory_id -> subcategory
-    accounts: Dict[int, AccountInfo]  # account_id -> account
+    accounts: Dict[str, AccountInfo]  # account_id -> account
     summary: AnalyticsSummary

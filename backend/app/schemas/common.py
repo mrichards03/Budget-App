@@ -5,10 +5,9 @@ from typing import Optional
 
 class AccountInfo(BaseModel):
     """Minimal account information for nested responses"""
-    id: int
+    id: str
     name: str
-    account_type: str
-    account_subtype: str
+    account_type: Optional[str]
     current_balance: float
     
     class Config:

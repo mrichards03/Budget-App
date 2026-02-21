@@ -50,17 +50,15 @@ class SubcategoryInfo {
 }
 
 class AccountInfo {
-  final int id;
+  final String id;
   final String name;
-  final String accountType;
-  final String accountSubtype;
+  final String? accountType;
   final double currentBalance;
 
   AccountInfo({
     required this.id,
     required this.name,
-    required this.accountType,
-    required this.accountSubtype,
+    this.accountType,
     required this.currentBalance,
   });
 
@@ -69,7 +67,6 @@ class AccountInfo {
       id: json['id'],
       name: json['name'],
       accountType: json['account_type'],
-      accountSubtype: json['account_subtype'],
       currentBalance: json['current_balance'].toDouble(),
     );
   }
@@ -131,7 +128,7 @@ class AnalyticsResponse {
   final List<Transaction> transactions;
   final Map<int, CategoryInfo> categories;
   final Map<int, SubcategoryInfo> subcategories;
-  final Map<int, AccountInfo> accounts;
+  final Map<String, AccountInfo> accounts;
   final AnalyticsSummary summary;
 
   AnalyticsResponse({
@@ -158,9 +155,9 @@ class AnalyticsResponse {
               MapEntry(int.parse(k.toString()), SubcategoryInfo.fromJson(v)),
         ),
       ),
-      accounts: Map<int, AccountInfo>.from(
+      accounts: Map<String, AccountInfo>.from(
         (json['accounts'] as Map).map(
-          (k, v) => MapEntry(int.parse(k.toString()), AccountInfo.fromJson(v)),
+          (k, v) => MapEntry(k.toString(), AccountInfo.fromJson(v)),
         ),
       ),
       summary: AnalyticsSummary.fromJson(json['summary']),
@@ -180,7 +177,7 @@ class AnalyticsResponse {
     return subcategories[subcategoryId]?.name;
   }
 
-  String? getAccountName(int accountId) {
+  String? getAccountName(String accountId) {
     return accounts[accountId]?.name;
   }
 

@@ -14,14 +14,15 @@ class AccountService:
     
     def store_account(self, account: dict, db: Session) -> tuple:
         """
-        Fetch connected accounts from Plaid and store/update them in the database.
+        Store account object from simplefin in db.
         
         Args:
-            access_token: Plaid access token for the item
+            access_token: Simplefin's access token for the user
             db: Database session
-            
+        
         Returns:
-            list: List of account data from Plaid API
+            bool: success or failure
+            str: failure message
         """
         try:            
             # Check if account already exists

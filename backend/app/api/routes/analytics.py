@@ -67,14 +67,14 @@ async def get_analytics_data(
             accounts_dict[acc.id] = AccountInfo.model_validate(acc)
     
     # Calculate summary statistics
-    # Plaid convention: positive = outflow/spending, negative = inflow/income
-    total_spending = sum(t.amount for t in transactions if t.amount > 0)
-    total_income = sum(t.amount for t in transactions if t.amount < 0)
+    # TODO check if correct for all of simpleFin including credit cards
+    total_spending = sum(t.amount for t in transactions if t.amount < 0)
+    total_income = sum(t.amount for t in transactions if t.amount > 0)
     net = total_income + total_spending
     
     # Calculate date range
     if transactions:
-        dates = [t.authorized_datetime or t.date for t in transactions]
+        dates = [t.transacted_at or t.posted for t in transactions]
         min_date = min(dates)
         max_date = max(dates)
         date_range_days = max((max_date - min_date).days, 1)
@@ -136,7 +136,7 @@ async def get_spending_breakdown(
     ).join(
         Transaction, Transaction.subcategory_id == Subcategory.id
     ).filter(
-        Transaction.amount > 0,
+        Transaction.amount < 0, #TODO check sign correct for credit cards too
         Transaction.is_transfer == False  # Exclude transfers
     )
     
@@ -196,9 +196,9 @@ async def get_income_vs_spending(
     
     transactions = query.all()
     
-    # Plaid convention: positive = outflow/spending, negative = inflow/income
-    total_spending = sum(t.amount for t in transactions if t.amount > 0)
-    total_income = sum(t.amount for t in transactions if t.amount < 0)
+    # TODO check if correct for cc
+    total_spending = sum(t.amount for t in transactions if t.amount < 0)
+    total_income = sum(t.amount for t in transactions if t.amount > 0)
     
     return {
         "total_income": float(total_income),

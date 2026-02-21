@@ -1,9 +1,9 @@
 class Transaction {
   final int id;
-  final int accountId;
+  final String accountId;
   final double amount;
   final DateTime effectiveDate;
-  final String displayName; // Backend's computed display_name
+  final String name; // Backend's computed display_name
   final String? memo;
   final int? subcategoryId;
   final bool pending;
@@ -20,7 +20,7 @@ class Transaction {
     required this.accountId,
     required this.amount,
     required this.effectiveDate,
-    required this.displayName,
+    required this.name,
     this.memo,
     this.subcategoryId,
     required this.pending,
@@ -37,7 +37,7 @@ class Transaction {
       accountId: json['account_id'],
       amount: json['amount'].toDouble(),
       effectiveDate: DateTime.parse(json['effective_date']),
-      displayName: json['display_name'],
+      name: json['name'],
       memo: json['memo'],
       subcategoryId: json['subcategory_id'],
       pending: json['pending'],

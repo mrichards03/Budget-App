@@ -5,11 +5,12 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.models.account import Account
+from app.schemas.account import AccountResponse
 
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", response_model=List[AccountResponse])
 async def get_accounts(db: Session = Depends(get_db)):
     """Get all accounts"""
     accounts = db.query(Account).all()

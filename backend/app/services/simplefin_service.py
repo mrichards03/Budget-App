@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class SimplefinService:
-    """Service for handling Plaid-related operations."""
+    """Service for handling simplefin-related operations."""
     
     def __init__(self, account_service=None, transaction_service=None):
         self.account_service = account_service
@@ -80,7 +80,7 @@ class SimplefinService:
                     return (False, acc_msg)
                 for transaction in account['transactions']:
                     transaction['posted-formatted'] = ts_to_datetime(transaction['posted'])
-                    print('{posted-formatted} {amount:>8} {description}'.format(**transaction))
+                    print('{id} {posted-formatted} {amount:>8} {description}'.format(**transaction))
                     if 'extra' in transaction:
                         print("Transaction extra:")
                         for k, v in transaction['extra'].items():

@@ -16,7 +16,6 @@ logging.basicConfig(
 
 # Reduce noise from libraries
 logging.getLogger("urllib3").setLevel(logging.WARNING)
-logging.getLogger("plaid").setLevel(logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
