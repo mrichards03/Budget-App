@@ -1,5 +1,4 @@
 - assigned money changed needs to affect next months budget after creation
-- change accounts to spending
 - narrow view screen for spending
 - accounts screen for narrow view
 - narrow screen for analyze

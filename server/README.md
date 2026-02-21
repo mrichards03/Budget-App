@@ -1,6 +1,6 @@
 # Budget App Backend
 
-FastAPI backend with SQLAlchemy, Splinfin integration, and scikit-learn ML models.
+FastAPI backend with SQLAlchemy, SimpleFin integration, and scikit-learn ML models.
 
 ## Setup
 
