@@ -6,21 +6,21 @@
     "configurations": [
 
         {
-            "name": "Debug (frontend)",
-            "cwd": "frontend",
+            "name": "Debug (client)",
+            "cwd": "client",
             "request": "launch",
             "type": "dart"
         },
         {
-            "name": "Profile (frontend)",
-            "cwd": "frontend",
+            "name": "Profile (client)",
+            "cwd": "client",
             "request": "launch",
             "type": "dart",
             "flutterMode": "profile"
         },
         {
-            "name": "Release (frontend)",
-            "cwd": "frontend",
+            "name": "Release (client)",
+            "cwd": "client",
             "request": "launch",
             "type": "dart",
             "flutterMode": "release"
