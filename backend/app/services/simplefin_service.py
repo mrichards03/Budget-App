@@ -30,13 +30,18 @@ class SimplefinService:
         except Exception as ex:
             return (False, f"Failed to save access_token: {ex}")
     
-    def get_accounts(self, access_token: str, db: Session) -> tuple:
+    def get_access_token(self, db:Session):
+        return db.query(SimplefinItem).first().access_token
+
+    def get_accounts(self, db: Session, access_token: str = None) -> tuple:
         """
         Get all accounts, transactions, and organizations
         
         Args:
             access_token: access token for simplefin
         """
+        if not access_token:
+            access_token = self.get_access_token(db)
         scheme, rest = access_token.split('//', 1)
         auth, rest = rest.split('@', 1)
         url = scheme + '//' + rest + '/accounts'
@@ -91,3 +96,4 @@ class SimplefinService:
             return (True, "") 
         except Exception as ex:
             return (False, f"Failed to save accounts and transactions: {ex}")
+        

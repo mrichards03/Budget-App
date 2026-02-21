@@ -28,14 +28,14 @@ class TransactionService:
     def add_transaction(self, transaction: dict, account_id: str, db: Session) -> tuple:
         try:
             existing_trans = db.query(Transaction).filter(
-                Transaction.transaction_id == int(transaction['id']),
+                Transaction.transaction_id == transaction['id'],
                 Transaction.account_id == account_id
             ).first()
             if existing_trans:
                 self._update_transaction(existing_trans, transaction, db)
             else:
                 new_trans = Transaction(
-                    transaction_id = int(transaction['id']),
+                    transaction_id = transaction['id'],
                     account_id = account_id,
                     posted = datetime.fromtimestamp(transaction['posted']),
                     amount = transaction['amount'],

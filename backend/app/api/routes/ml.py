@@ -80,7 +80,7 @@ async def get_models_status():
     }
 
 @router.post("/batch_predict")
-async def batch_predict(transaction_ids: List[int], db: Session = Depends(get_db)):
+async def batch_predict(transaction_ids: List[str], db: Session = Depends(get_db)):
     """
     Predict categories for multiple transactions at once.
     """

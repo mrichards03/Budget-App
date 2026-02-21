@@ -5,9 +5,16 @@ from app.core.config import settings
 from app.api.routes import transactions, ml, categories, budgets, accounts, analytics
 from app.core.database import init_db, get_db
 from app.services.category_service import CategoryService
+from apscheduler.schedulers.background import BackgroundScheduler
 import logging
 
 from app.api.routes import simplefin
+from app.services.simplefin_service import SimplefinService
+from app.services.account_service import AccountService
+from app.services.transaction_service import TransactionService
+from sqlalchemy.orm import Session
+
+scheduler = BackgroundScheduler()
 
 logging.basicConfig(
     level=logging.DEBUG,  # Show all logs including DEBUG
@@ -16,6 +23,20 @@ logging.basicConfig(
 
 # Reduce noise from libraries
 logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+def scheduled_simplefin_job():
+    db = next(get_db())
+    try:
+        account_service = AccountService()
+        transaction_service = TransactionService()
+        simplefin_service = SimplefinService(account_service, transaction_service)
+        simplefin_service.get_accounts(db)
+    finally:
+        db.close()
+
+def start_scheduler():
+    scheduler.add_job(scheduled_simplefin_job, 'interval', hours=3)
+    scheduler.start()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,6 +50,8 @@ async def lifespan(app: FastAPI):
         category_service.seed_default_categories(db)
     finally:
         db.close()
+
+    start_scheduler()
     
     yield
 

@@ -52,7 +52,6 @@ class CategoryService:
         
         db_category = Category(
             name=category_data.name,
-            description=category_data.description,
             color=category_data.color,
             icon=category_data.icon
         )
@@ -160,8 +159,7 @@ class CategoryService:
         
         db_subcategory = Subcategory(
             category_id=subcategory_data.category_id,
-            name=subcategory_data.name,
-            description=subcategory_data.description
+            name=subcategory_data.name
         )
         db.add(db_subcategory)
         db.commit()
@@ -243,97 +241,92 @@ class CategoryService:
         logger.info("No categories found. Seeding default categories...")
         
         default_categories = [
-            {
-                "name": "Bills",
-                "description": "Fixed recurring expenses",
-                "color": "#FF5252",
-                "icon": "receipt",
-                "subcategories": [
-                    {"name": "Rent", "description": "Housing payment"},
-                    {"name": "Utilities", "description": "Electric, gas, water"},
-                    {"name": "Phone", "description": "Mobile and landline"},
-                    {"name": "Internet", "description": "Internet service"},
-                    {"name": "Car Insurance", "description": "car insurance"},
-                    {"name": "Subscriptions", "description": "Streaming services, memberships"},
-                ]
-            },
-            {
-                "name": "Needs",
-                "description": "Essential living expenses",
-                "color": "#4CAF50",
-                "icon": "shopping_cart",
-                "subcategories": [
-                    {"name": "Groceries", "description": "Food and household items"},
-                    {"name": "Public Transit", "description": "public transit, rideshare"},
-                    {"name": "Healthcare", "description": "Medical expenses, prescriptions"},
-                    {"name": "Personal Care", "description": "Haircuts, hygiene products"},
-                ]
-            },
-            {
-                "name": "Wants",
-                "description": "Discretionary spending",
-                "color": "#2196F3",
-                "icon": "favorite",
-                "subcategories": [
-                    {"name": "Dining Out", "description": "Restaurants, takeout"},
-                    {"name": "Entertainment", "description": "Movies, concerts, hobbies"},
-                    {"name": "Shopping", "description": "Clothes, electronics, misc"},
-                    {"name": "Travel", "description": "Vacations, trips"},
-                    {"name": "Gifts", "description": "Presents for others"},
-                    {"name": "Hobbies", "description": "Sports, crafts, collections"},
-                    {"name": "Cigarettes & Alcohol", "description": ""},
-                ]
-            },
-            {
-                "name": "Savings & Investments",
-                "description": "Building wealth",
-                "color": "#FFC107",
-                "icon": "savings",
-                "subcategories": [
-                    {"name": "Emergency Fund", "description": "Rainy day savings"},
-                    {"name": "Retirement", "description": "401k, IRA contributions"},
-                ]
-            },
-            {
-                "name": "Debt",
-                "description": "Loan and credit payments",
-                "color": "#9C27B0",
-                "icon": "credit_card",
-                "subcategories": [
-                    {"name": "Student Loans", "description": "Education debt"}
-                ]
-            },
-            {
-                "name": "Income",
-                "description": "Money coming in",
-                "color": "#00BCD4",
-                "icon": "attach_money",
-                "subcategories": [
-                    {"name": "Salary", "description": "Regular paycheck"},
-                    {"name": "Refunds", "description": "Tax refunds, returns"},
-                    {"name": "Other Income", "description": "Miscellaneous income"},
-                ]
-            },
-            {
-                "name": "Transfers",
-                "description": "Transfers between accounts (net zero)",
-                "color": "#607D8B",
-                "icon": "swap_horiz",
-                "subcategories": [
-                    {"name": "Account Transfer", "description": "Transfers between your accounts"},
-                    {"name": "Credit Card Payment", "description": "Payments to credit cards"},
-                ]
-            },
-            {
-                "name": "Other",
-                "description": "Miscellaneous",
-                "color": "#607D8B",
-                "icon": "swap_horiz",
-                "subcategories": [
-                    {"name": "Miscellaneous", "description": ""},
-                ]
-            },
-        ]
+        {
+            "name": "Bills",
+            "color": "#FF5252",
+            "icon": "receipt",
+            "subcategories": [
+                {"name": "Rent"},
+                {"name": "Utilities"},
+                {"name": "Insurance"},
+                {"name": "Phone"},
+                {"name": "Internet"},
+                {"name": "Subscriptions"},
+                {"name": "Gym Membership"}
+            ]
+        },
+        {
+            "name": "Needs",
+            "color": "#4CAF50",
+            "icon": "shopping_cart",
+            "subcategories": [
+                {"name": "Groceries"},
+                {"name": "Gas"},
+                {"name": "Public Transit"},
+                {"name": "Healthcare"},
+                {"name": "Car Maintenance"},
+                {"name": "Household Supplies"}
+            ]
+        },
+        {
+            "name": "Wants",
+            "color": "#2196F3",
+            "icon": "favorite",
+            "subcategories": [
+                {"name": "Dining Out"},
+                {"name": "Entertainment"},
+                {"name": "Shopping"},
+                {"name": "Gifts"},
+                {"name": "Hobbies"},
+                {"name": "Cigarettes & Alcohol"},
+            ]
+        },
+        {
+            "name": "Savings & Investments",
+            "color": "#FFC107",
+            "icon": "savings",
+            "subcategories": [
+                {"name": "Emergency Fund"},
+                {"name": "General Savings"},
+                {"name": "Travel"},
+            ]
+        },
+        {
+            "name": "Debt",
+            "color": "#9C27B0",
+            "icon": "credit_card",
+            "subcategories": [
+                {"name": "Student Loans"}
+            ]
+        },
+        {
+            "name": "Income",
+            "color": "#00BCD4",
+            "icon": "attach_money",
+            "subcategories": [
+                {"name": "Salary"},
+                {"name": "Refunds"},
+                {"name": "Other Income"},
+            ]
+        },
+        {
+            "name": "Transfers",
+            "color": "#607D8B",
+            "icon": "swap_horiz",
+            "subcategories": [
+                {"name": "Account Transfer"},
+                {"name": "Credit Card Payment"},
+            ]
+        },
+        {
+            "name": "Other",
+            "color": "#607D8B",
+            "icon": "swap_horiz",
+            "subcategories": [
+                {"name": "Miscellaneous"},
+            ]
+        },
+    ]
         
         for cat_data in default_categories:
             subcats = cat_data.pop("subcategories", [])
@@ -341,7 +334,6 @@ class CategoryService:
             # Create category
             category = Category(
                 name=cat_data["name"],
-                description=cat_data["description"],
                 color=cat_data.get("color"),
                 icon=cat_data.get("icon")
             )
@@ -353,7 +345,6 @@ class CategoryService:
                 subcategory = Subcategory(
                     category_id=category.id,
                     name=subcat_data["name"],
-                    description=subcat_data.get("description")
                 )
                 db.add(subcategory)
             

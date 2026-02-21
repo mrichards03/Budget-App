@@ -333,7 +333,7 @@ class MLService:
                 "error": str(e)
             }
     
-    def batch_predict(self, transaction_ids: List[int], db: Session) -> List[Dict]:
+    def batch_predict(self, transaction_ids: List[str], db: Session) -> List[Dict]:
         """
         Efficiently predict categories for multiple transactions.
         """

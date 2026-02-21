@@ -3,14 +3,12 @@ import 'transaction.dart';
 class CategoryInfo {
   final int id;
   final String name;
-  final String? description;
   final String? color;
   final String? icon;
 
   CategoryInfo({
     required this.id,
     required this.name,
-    this.description,
     this.color,
     this.icon,
   });
@@ -19,7 +17,6 @@ class CategoryInfo {
     return CategoryInfo(
       id: json['id'],
       name: json['name'],
-      description: json['description'],
       color: json['color'],
       icon: json['icon'],
     );
@@ -30,21 +27,18 @@ class SubcategoryInfo {
   final int id;
   final String name;
   final int categoryId;
-  final String? description;
 
   SubcategoryInfo({
     required this.id,
     required this.name,
-    required this.categoryId,
-    this.description,
+    required this.categoryId
   });
 
   factory SubcategoryInfo.fromJson(Map<String, dynamic> json) {
     return SubcategoryInfo(
       id: json['id'],
       name: json['name'],
-      categoryId: json['category_id'],
-      description: json['description'],
+      categoryId: json['category_id']
     );
   }
 }

@@ -9,7 +9,6 @@ class Category(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
-    description = Column(String, nullable=True)
     
     # Optional color or icon for UI
     color = Column(String, nullable=True)  # Hex color code
@@ -28,7 +27,6 @@ class Subcategory(Base):
     id = Column(Integer, primary_key=True, index=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     name = Column(String, index=True, nullable=False)
-    description = Column(String, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

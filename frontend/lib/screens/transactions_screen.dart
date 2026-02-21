@@ -7,14 +7,14 @@ import '../models/category.dart';
 import '../models/account.dart';
 import '../widgets/transaction_category_field.dart';
 
-class AccountsScreen extends StatefulWidget {
-  const AccountsScreen({super.key});
+class TransactionsScreen extends StatefulWidget {
+  const TransactionsScreen({super.key});
 
   @override
-  State<AccountsScreen> createState() => _AccountsScreenState();
+  State<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
-class _AccountsScreenState extends State<AccountsScreen> {
+class _TransactionsScreenState extends State<TransactionsScreen> {
   List<Transaction> _transactions = [];
   List<Category> _categories = [];
   List<Account> _accounts = [];
@@ -240,7 +240,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       child: const Text(
-        'All Accounts',
+        'All Transactions',
         style: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,

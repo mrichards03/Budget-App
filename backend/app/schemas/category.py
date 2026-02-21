@@ -6,7 +6,6 @@ from typing import Optional, List
 # Subcategory Schemas
 class SubcategoryBase(BaseModel):
     name: str
-    description: Optional[str] = None
 
 
 class SubcategoryCreate(SubcategoryBase):
@@ -15,7 +14,6 @@ class SubcategoryCreate(SubcategoryBase):
 
 class SubcategoryUpdate(BaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
 
 
 class SubcategoryResponse(SubcategoryBase):
@@ -31,7 +29,6 @@ class SubcategoryResponse(SubcategoryBase):
 # Category Schemas
 class CategoryBase(BaseModel):
     name: str
-    description: Optional[str] = None
     color: Optional[str] = None
     icon: Optional[str] = None
 
@@ -42,7 +39,6 @@ class CategoryCreate(CategoryBase):
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None
     color: Optional[str] = None
     icon: Optional[str] = None
 

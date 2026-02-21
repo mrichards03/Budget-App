@@ -1,10 +1,13 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/api/api_result.dart';
 import '../services/api_service.dart';
 import '../models/account.dart';
 import 'budget_screen.dart';
 import 'reflect_screen.dart';
-import 'accounts_screen.dart';
+import 'transactions_screen.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -18,6 +21,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
   List<Account> _accounts = [];
   bool _isLoading = true;
   bool _isExtended = true;
+  bool _accessExists = false;
 
   @override
   void initState() {
@@ -32,11 +36,22 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
     try {
       final apiService = Provider.of<ApiService>(context, listen: false);
-
+      final accessExists = await apiService.simpleFin.doesAccessExist();
       final accountsData = await apiService.accounts.getAccounts();
+
+      if (!accessExists.isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Failed to load access_token status: ${accessExists.error}')),
+        );
+        log("Failed to load access_token status: ${accessExists.error!}",
+            level: 0);
+      }
 
       setState(() {
         _accounts = accountsData.map((a) => Account.fromJson(a)).toList();
+        _accessExists = accessExists.isSuccess ? accessExists.data! : true;
         _isLoading = false;
       });
     } catch (e) {
@@ -53,9 +68,10 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
   Future<void> _connectAccount(String accessCode) async {
     final apiService = Provider.of<ApiService>(context, listen: false);
-    String msg = await apiService.simpleFin.connectAccounts(accessCode);
+    ApiResult<String> result =
+        await apiService.simpleFin.connectAccounts(accessCode);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(content: Text(result.isSuccess ? "Synced!" : result.error!)),
     );
   }
 
@@ -66,40 +82,63 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
       case 1:
         return const ReflectScreen();
       case 2:
-        return const AccountsScreen();
+        return const TransactionsScreen();
       default:
         return const BudgetScreen();
     }
   }
 
   Widget _buildAccountsList() {
-    return _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 12.0,
+            vertical: 8.0,
+          ),
+          child: Text(
+            'ACCOUNTS',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12.0,
-                    vertical: 8.0,
-                  ),
-                  child: Text(
-                    'ACCOUNTS',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ),
                 ..._accounts.map((account) => _AccountItem(
                       name: account.name,
                       balance: account.currentBalance,
                       accountType: account.accountType,
                     )),
                 const SizedBox(height: 12),
-
-                // Add Institution Button
-                OutlinedButton.icon(
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+          child: _accessExists
+              ? OutlinedButton.icon(
+                  onPressed: () async {
+                    await _sync();
+                  },
+                  icon: const Icon(Icons.sync, size: 18),
+                  label: const Text('Sync'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                )
+              : OutlinedButton.icon(
                   onPressed: _showAccessCodeDialog,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Institution'),
@@ -110,9 +149,21 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                     ),
                   ),
                 ),
-              ],
-            ),
-          );
+        ),
+      ],
+    );
+  }
+
+  Future<void> _sync() async {
+    final apiService = Provider.of<ApiService>(context, listen: false);
+    ApiResult<String> result = await apiService.simpleFin.sync();
+    if (result.isSuccess) {
+      _loadData();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error!)),
+      );
+    }
   }
 
   void _showAccessCodeDialog() async {
@@ -173,14 +224,8 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         NavigationRailDestination(
             icon: Icon(Icons.insights), label: Text("Analytics")),
         NavigationRailDestination(
-            icon: Icon(Icons.account_balance), label: Text("Acccounts")),
+            icon: Icon(Icons.account_balance), label: Text("Transactions")),
       ],
-      trailing: !isExtended
-          ? null
-          : SizedBox(
-              width: 240, // match NavigationRail's width when extended
-              child: _buildAccountsList(),
-            ),
     );
   }
 
@@ -220,7 +265,21 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         ),
         body: Row(
           children: <Widget>[
-            _buildSideNav(_isExtended),
+            SizedBox(
+              width: _isExtended ? 240 : 0,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: _buildSideNav(_isExtended),
+                  ),
+                  if (_isExtended)
+                    Expanded(
+                      flex: 2,
+                      child: _buildAccountsList(),
+                    ),
+                ],
+              ),
+            ),
             Expanded(
               child: _getSelectedScreen(),
             ),

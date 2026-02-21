@@ -48,7 +48,7 @@ async def get_transactions(
     return transactions
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
-async def get_transaction(transaction_id: int, db: Session = Depends(get_db)):
+async def get_transaction(transaction_id: str, db: Session = Depends(get_db)):
     """Get a specific transaction by ID."""
     transaction = db.query(Transaction).filter(Transaction.transaction_id == transaction_id).first()
     if not transaction:
@@ -72,7 +72,7 @@ async def get_transactions_by_category(
 
 @router.post("/{transaction_id}/categorize")
 async def manually_categorize_transaction(
-    transaction_id: int,
+    transaction_id: str,
     categorize_request: CategorizeTransactionRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)

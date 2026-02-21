@@ -9,7 +9,7 @@ class Transaction(Base):
     id = Column(Integer, index=True, primary_key=True)
     
     account_id = Column(String, ForeignKey("accounts.id"))
-    transaction_id = Column(Integer)
+    transaction_id = Column(String)
     
     # Basic transaction info
     amount = Column(Float)
@@ -23,7 +23,7 @@ class Transaction(Base):
     # Transfer detection - important for credit card payments, account transfers
     is_transfer = Column(Boolean, default=False)
     transfer_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)  # Link to other account
-    transfer_transaction_id = Column(String, nullable=True)  # Plaid's transfer matching ID
+    transfer_transaction_id = Column(Integer, nullable=True)  # Plaid's transfer matching ID
     
     # Location (store as JSON)
     location = Column(JSON, nullable=True)

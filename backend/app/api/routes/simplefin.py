@@ -10,6 +10,9 @@ from app.services.account_service import AccountService
 from app.services.transaction_service import TransactionService
 from app.models import Organization
 
+from app.models.simplefin_item import SimplefinItem
+from app.schemas.api_result import ApiResult
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -27,42 +30,49 @@ async def get_institutions(db: Session = Depends(get_db)):
     """
     return db.query(Organization)
 
+@router.get("/access-exists")
+async def does_access_exist(db: Session = Depends(get_db)):
+    try:
+        exists = db.query(SimplefinItem).count() > 0
+        return ApiResult.success(exists).__dict__
+    except Exception as e:
+        return ApiResult.error(str(e)).__dict__
 
 @router.post("/connect")
 async def connect(access_code: str, db: Session = Depends(get_db)):
-    # Python 3: decode base64 string
-    claim_url = base64.b64decode(access_code).decode('utf-8')
-    # Enforce HTTPS only
-    if not claim_url.lower().startswith('https://'):
-        raise HTTPException(status_code=400, detail="Only HTTPS URLs are allowed for security.")
-
     try:
-        response = requests.post(claim_url, verify=True)
-    except requests.exceptions.SSLError:
-        raise HTTPException(status_code=400, detail="SSL certificate verification failed.")
-
-    if response.status_code == 403:
-        # Notify user that token may be compromised
-        raise HTTPException(
-            status_code=403,
-            detail="Access denied when claiming Access URL. Your token may be compromised. Please disable the token and contact support."
-        )
-    elif response.status_code != 200:
-        # Display sanitized error message
-        error_msg = response.text[:200].replace('\n', ' ').replace('\r', ' ')
-        raise HTTPException(status_code=response.status_code, detail=f"Error claiming Access URL: {error_msg}")
-
-    try:
+        claim_url = base64.b64decode(access_code).decode('utf-8')
+        if not claim_url.lower().startswith('https://'):
+            return ApiResult.error("Only HTTPS URLs are allowed for security.").__dict__
+        try:
+            response = requests.post(claim_url, verify=True)
+        except requests.exceptions.SSLError:
+            return ApiResult.error("SSL certificate verification failed.").__dict__
+        if response.status_code == 403:
+            return ApiResult.error("Access denied when claiming Access URL. Your token may be compromised. Please disable the token and contact support.").__dict__
+        elif response.status_code != 200:
+            error_msg = response.text[:200].replace('\n', ' ').replace('\r', ' ')
+            return ApiResult.error(f"Error claiming Access URL: {error_msg}").__dict__
         access_url = response.text
         success, msg = simplefin_service.add_access_token(access_url, db)
         if success:
             acc_success, acc_msg = simplefin_service.get_accounts(access_url, db)
-            if(not acc_success):
-                raise HTTPException(status_code=500, detail=f"Failed to fetch/store accounts: {acc_msg}")
+            if not acc_success:
+                return ApiResult.error(f"Failed to fetch/store accounts: {acc_msg}").__dict__
             db.commit()
+            return ApiResult.success("Account connected and accounts fetched.").__dict__
         else:
-            raise HTTPException(status_code=500, detail=f"Failed to store access_token: {msg}")
+            return ApiResult.error(f"Failed to store access_token: {msg}").__dict__
     except Exception as ex:
-        raise HTTPException(status_code=500, detail=f"Failed to get/store accounts and transactions: {ex}")
+        return ApiResult.error(f"Failed to get/store accounts and transactions: {ex}").__dict__
 
-
+@router.post("/sync")
+async def sync(db: Session = Depends(get_db)):
+    try:
+        success, msg = simplefin_service.get_accounts(db)
+        db.commit()
+        if not success:
+            return ApiResult.error(f"Failed to fetch/store accounts: {msg}").__dict__
+        return ApiResult.success("Accounts synced successfully.").__dict__
+    except Exception as ex:
+        return ApiResult.error(f"Failed to get/store accounts and transactions: {ex}").__dict__

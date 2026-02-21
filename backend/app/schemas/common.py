@@ -18,7 +18,6 @@ class CategoryInfo(BaseModel):
     """Minimal category information for nested responses"""
     id: int
     name: str
-    description: Optional[str] = None
     color: Optional[str] = None
     icon: Optional[str] = None
     
@@ -31,7 +30,6 @@ class SubcategoryInfo(BaseModel):
     id: int
     name: str
     category_id: int
-    description: Optional[str] = None
     
     class Config:
         from_attributes = True

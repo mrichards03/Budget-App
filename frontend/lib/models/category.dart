@@ -1,7 +1,6 @@
 class Category {
   final int id;
   final String name;
-  final String? description;
   final String? color;
   final String? icon;
   final DateTime createdAt;
@@ -11,7 +10,6 @@ class Category {
   Category({
     required this.id,
     required this.name,
-    this.description,
     this.color,
     this.icon,
     required this.createdAt,
@@ -23,7 +21,6 @@ class Category {
     return Category(
       id: json['id'],
       name: json['name'],
-      description: json['description'],
       color: json['color'],
       icon: json['icon'],
       createdAt: DateTime.parse(json['created_at']),
@@ -41,7 +38,6 @@ class Subcategory {
   final int id;
   final int categoryId;
   final String name;
-  final String? description;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -49,7 +45,6 @@ class Subcategory {
     required this.id,
     required this.categoryId,
     required this.name,
-    this.description,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -59,7 +54,6 @@ class Subcategory {
       id: json['id'],
       categoryId: json['category_id'],
       name: json['name'],
-      description: json['description'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );
