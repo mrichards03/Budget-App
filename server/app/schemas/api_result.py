@@ -12,7 +12,7 @@ class ApiResult(Generic[T]):
         return self.error is None
 
     @classmethod
-    def success(cls, data: T):
+    def success(cls, data: T = None):
         return cls(data=data)
 
     @classmethod

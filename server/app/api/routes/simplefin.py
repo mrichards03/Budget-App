@@ -56,7 +56,7 @@ async def connect(access_code: str, db: Session = Depends(get_db)):
         access_url = response.text
         success, msg = simplefin_service.add_access_token(access_url, db)
         if success:
-            acc_success, acc_msg = simplefin_service.get_accounts(access_url, db)
+            acc_success, acc_msg = simplefin_service.get_accounts(db, access_url)
             if not acc_success:
                 return ApiResult.error(f"Failed to fetch/store accounts: {acc_msg}").__dict__
             db.commit()

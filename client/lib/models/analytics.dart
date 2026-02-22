@@ -60,7 +60,7 @@ class AccountInfo {
     return AccountInfo(
       id: json['id'],
       name: json['name'],
-      accountType: json['account_type'],
+      accountType: json['type'],
       currentBalance: json['current_balance'].toDouble(),
     );
   }

@@ -5,7 +5,8 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.models.account import Account
-from app.schemas.account import AccountResponse
+from app.schemas.account import AccountResponse, ChangeTypeRequest
+from app.schemas.api_result import ApiResult
 
 router = APIRouter()
 
@@ -30,3 +31,13 @@ async def get_total_balance(db: Session = Depends(get_db)):
         else:
             total += account.current_balance
     return {"total_balance": total}
+
+@router.post("/{id}/updateType")
+async def update_type(id: str, typeRequest: ChangeTypeRequest, db: Session=Depends(get_db)):
+    try:
+        account = db.query(Account).filter(Account.id == id).first()
+        account.account_type = typeRequest.new_type
+        db.commit()
+        return ApiResult.success().__dict__
+    except Exception as e:
+        return ApiResult.error(str(e)).__dict__

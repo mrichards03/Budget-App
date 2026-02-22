@@ -1,7 +1,9 @@
+
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 from datetime import datetime
+from app.schemas.account import AccountType
 
 class Account(Base):
     __tablename__ = "accounts"
@@ -11,13 +13,24 @@ class Account(Base):
 
     name = Column(String)
 
-    account_type = Column(String)  # depository, credit, etc.
-    account_subtype = Column(String)  # checking, savings, credit card, etc.
-    holder_category = Column(String, nullable=True)
-
     current_balance = Column(Float, default=0.0)
     available_balance = Column(Float, nullable=True)
     currency_code = Column(String, default="CAD")
+
+    type = Column(Integer, default=AccountType.CHECKING)
+
+    @property
+    def account_type(self):
+        return AccountType(self.type)
+
+    @account_type.setter
+    def account_type(self, value):
+        if isinstance(value, AccountType):
+            self.type = value.value
+        elif isinstance(value, int):
+            self.type = value
+        else:
+            raise ValueError("Invalid account type")
     
     balance_date = Column(DateTime)
 

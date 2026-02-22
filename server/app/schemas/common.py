@@ -7,7 +7,7 @@ class AccountInfo(BaseModel):
     """Minimal account information for nested responses"""
     id: str
     name: str
-    account_type: Optional[str]
+    account_type: int
     current_balance: float
     
     class Config:

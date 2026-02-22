@@ -93,7 +93,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
         organizationDomain: 'Unknown',
         currencyCode: 'CAD',
         name: 'Unknown',
-        accountType: '',
+        accountType: AccountType.checking,
         currentBalance: 0,
         balanceDate: DateTime.now(),
         createdAt: DateTime.now(),

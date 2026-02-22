@@ -8,6 +8,7 @@ import '../models/account.dart';
 import 'budget_screen.dart';
 import 'reflect_screen.dart';
 import 'transactions_screen.dart';
+import 'accounts_screen.dart';
 
 class MainLayoutScreen extends StatefulWidget {
   const MainLayoutScreen({super.key});
@@ -70,9 +71,12 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
     final apiService = Provider.of<ApiService>(context, listen: false);
     ApiResult<String> result =
         await apiService.simpleFin.connectAccounts(accessCode);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(result.isSuccess ? "Synced!" : result.error!)),
-    );
+    if (!result.isSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error!)),
+      );
+      log(result.error!);
+    }
   }
 
   Widget _getSelectedScreen() {
@@ -83,6 +87,8 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         return const ReflectScreen();
       case 2:
         return const TransactionsScreen();
+      case 3:
+        return const AccountsScreen();
       default:
         return const BudgetScreen();
     }
@@ -115,7 +121,6 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                 ..._accounts.map((account) => _AccountItem(
                       name: account.name,
                       balance: account.currentBalance,
-                      accountType: account.accountType,
                     )),
                 const SizedBox(height: 12),
               ],
@@ -197,7 +202,6 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
       },
     );
     if (result != null && result.isNotEmpty) {
-      // TODO: Use the access code to link Plaid or call backend
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Access code submitted: ' + result)),
       );
@@ -224,7 +228,9 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
         NavigationRailDestination(
             icon: Icon(Icons.insights), label: Text("Analytics")),
         NavigationRailDestination(
-            icon: Icon(Icons.account_balance), label: Text("Transactions")),
+            icon: Icon(Icons.wallet), label: Text("Transactions")),
+        NavigationRailDestination(
+            icon: Icon(Icons.account_balance), label: Text("Accounts"))
       ],
     );
   }
@@ -236,7 +242,9 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
           BottomNavigationBarItem(
               icon: Icon(Icons.insights), label: "Analytics"),
           BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance), label: "Acccounts"),
+              icon: Icon(Icons.wallet), label: "Transactions"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance), label: "Accounts")
         ],
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -297,19 +305,17 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 class _AccountItem extends StatelessWidget {
   final String name;
   final double balance;
-  final String? accountType;
 
   const _AccountItem({
     required this.name,
     required this.balance,
-    this.accountType,
   });
 
   @override
   Widget build(BuildContext context) {
     // For credit accounts: positive balance = debt (red), negative = overpaid (green)
     // For other accounts: positive balance = money (green), negative = overdrawn (red)
-    final bool isGood = accountType == 'credit' ? balance < 0 : balance > 0;
+    final bool isGood = balance > 0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),

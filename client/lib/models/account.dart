@@ -1,3 +1,14 @@
+
+enum AccountType {
+  checking,
+  savings,
+  credit,
+  investment,
+  loan,
+  other,
+  unknown
+}
+
 class Account {
   final String id;
   final String name;
@@ -6,7 +17,7 @@ class Account {
   final double? availableBalance;
   final DateTime balanceDate;
   final String organizationDomain;
-  final String? accountType;
+  final AccountType accountType;
   final DateTime createdAt;
 
   Account({
@@ -17,11 +28,14 @@ class Account {
     this.availableBalance,
     required this.balanceDate,
     required this.organizationDomain,
-    this.accountType,
+    required this.accountType,
     required this.createdAt,
   });
 
   factory Account.fromJson(Map<String, dynamic> json) {
+    int typeInt = json['account_type'] is int
+        ? json['account_type']
+        : int.tryParse(json['account_type'].toString()) ?? 0;
     return Account(
       id: json['id'],
       name: json['name'],
@@ -30,7 +44,7 @@ class Account {
       availableBalance: json['available_balance']?.toDouble(),
       balanceDate: DateTime.parse(json['balance_date']),
       organizationDomain: json['organization_domain'],
-      accountType: json['account_type'],
+      accountType: AccountType.values[typeInt],
       createdAt: DateTime.parse(json['created_at']),
     );
   }
