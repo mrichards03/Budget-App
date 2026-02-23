@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/budget.dart';
-import '../models/category.dart';
 import '../services/api_service.dart';
 import '../widgets/budget_summary_card.dart';
 import '../widgets/budget_category_group.dart';
@@ -189,13 +188,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
   double _calculateTotalAssigned() =>
       _budget?.subcategoryBudgets?.fold(
         0.0,
-        (sum, sb) => sum! + sb.monthlyAssigned,
+        (sum, sb) => sum! + sb.monthlyAssigned + sb.totalBalance,
       ) ??
-      0.0;
-
-  double _calculateTotalActivity() =>
-      _budget?.subcategoryBudgets
-          ?.fold(0.0, (sum, sb) => sum! + sb.monthlyActivity) ??
       0.0;
 
   @override
@@ -265,8 +259,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
           _buildCategoryHeaders(isWideScreen),
           Expanded(
             child: ListView.builder(
-              itemCount:
-                  groupedCategories.length,
+              itemCount: groupedCategories.length,
               itemBuilder: (context, index) {
                 final categoryName = groupedCategories.keys.elementAt(index);
                 final subcategories = groupedCategories[categoryName]!;
@@ -304,7 +297,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
             Expanded(
               child: Text(
-                'TOTAL BALANCE',
+                'CARRYOVER BALANCE',
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,

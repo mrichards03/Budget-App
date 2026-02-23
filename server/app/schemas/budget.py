@@ -55,7 +55,6 @@ class BudgetResponse(BudgetBase):
     created_at: datetime
     updated_at: datetime
     subcategory_budgets: List[SubcategoryBudgetResponse] = []
-    total_allocated: float = 0.0
     
     class Config:
         from_attributes = True

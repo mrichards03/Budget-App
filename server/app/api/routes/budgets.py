@@ -33,8 +33,7 @@ async def get_current_budget(db: Session = Depends(get_db)):
         start_date=budget.start_date,
         created_at=budget.created_at,
         updated_at=budget.updated_at,
-        subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
+        subcategory_budgets=subcategory_budgets
     )
 
 
@@ -69,34 +68,7 @@ async def get_budget_by_month(year: int, month: int, db: Session = Depends(get_d
         created_at=budget.created_at,
         updated_at=budget.updated_at,
         subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
     )
-
-
-@router.get("/{budget_id}", response_model=BudgetResponse)
-async def get_budget(budget_id: int, db: Session = Depends(get_db)):
-    """Get a specific budget by ID with subcategory allocations and spending."""
-    budget = budget_service.get_budget_by_id(db, budget_id, eager_load=True)
-    
-    if not budget:
-        raise HTTPException(status_code=404, detail="Budget not found")
-    
-    # Build response with current spending
-    spending_by_subcategory = budget_service.get_spending_by_subcategory(db, budget.id)
-    subcategory_budgets = budget_service.build_subcategory_budget_responses(budget, spending_by_subcategory)
-    
-    return BudgetResponse(
-        id=budget.id,
-        name=budget.name,
-        month=budget.month,
-        year=budget.year,
-        start_date=budget.start_date,
-        created_at=budget.created_at,
-        updated_at=budget.updated_at,
-        subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
-    )
-
 
 @router.post("/", response_model=BudgetResponse, status_code=201)
 async def create_budget(
@@ -118,8 +90,7 @@ async def create_budget(
         start_date=db_budget.start_date,
         created_at=db_budget.created_at,
         updated_at=db_budget.updated_at,
-        subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
+        subcategory_budgets=subcategory_budgets
     )
 
 
@@ -145,8 +116,7 @@ async def update_budget(
         start_date=updated_budget.start_date,
         created_at=updated_budget.created_at,
         updated_at=updated_budget.updated_at,
-        subcategory_budgets=subcategory_budgets,
-        total_allocated=sum(sb.total_balance for sb in subcategory_budgets)
+        subcategory_budgets=subcategory_budgets
     )
 
 

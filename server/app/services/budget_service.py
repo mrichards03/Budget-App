@@ -56,6 +56,10 @@ class BudgetService:
             budget = self._create_monthly_budget(db, month, year)
             if eager_load:
                 budget = self.get_budget_by_id(db, budget.id, eager_load=True)
+        else:
+            now = datetime.now()
+            if year > now.year or (year == now.year and month > now.month):
+                self._update_future_budget(db, budget)
         
         return budget
     
@@ -215,6 +219,38 @@ class BudgetService:
         
         return subcategory_budgets
     
+    def _update_future_budget(self, db: Session, future_budget: Budget):
+        all_subcategories = db.query(Subcategory).all()
+        
+        # Calculate previous month/year
+        if future_budget.month == 1:
+            prev_month = 12
+            prev_year = future_budget.year - 1
+        else:
+            prev_month = future_budget.month - 1
+            prev_year = future_budget.year
+        
+        previous_budget = db.query(Budget).filter(
+            Budget.month == prev_month,
+            Budget.year == prev_year
+        ).first()
+        
+        previous_balances = {}
+        if previous_budget:
+            spending = self.get_spending_by_subcategory(db, previous_budget.id)
+            for prev_subcat in previous_budget.subcategory_budgets:
+                monthly_activity = spending.get(prev_subcat.subcategory_id, 0.0)
+                total_balance = prev_subcat.total_balance + prev_subcat.monthly_assigned - monthly_activity
+                previous_balances[prev_subcat.subcategory_id] = total_balance
+        
+        for subcategory in all_subcategories:
+            prev_balance = previous_balances.get(subcategory.id, 0.0)
+            db_subcat_budget = db.query(SubcategoryBudget).filter(SubcategoryBudget.budget_id == future_budget.id, SubcategoryBudget.subcategory_id == subcategory.id).first()
+            db_subcat_budget.total_balance=prev_balance
+        
+        db.commit()
+        logger.info(f"Auto-updated monthly budget: {future_budget.name} ({future_budget.month}/{future_budget.year})")
+
     def _create_monthly_budget(self, db: Session, month: int, year: int) -> Budget:
         """Create a new monthly budget with rollover from previous month."""
         month_start = datetime(year, month, 1)
@@ -248,7 +284,7 @@ class BudgetService:
             spending = self.get_spending_by_subcategory(db, previous_budget.id)
             for prev_subcat in previous_budget.subcategory_budgets:
                 monthly_activity = spending.get(prev_subcat.subcategory_id, 0.0)
-                monthly_available = prev_subcat.monthly_target - monthly_activity
+                monthly_available = prev_subcat.total_balance + prev_subcat.monthly_assigned - monthly_activity
                 previous_balances[prev_subcat.subcategory_id] = monthly_available
         
         for subcategory in all_subcategories:

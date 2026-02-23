@@ -7,7 +7,6 @@ class Budget {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final List<SubcategoryBudget>? subcategoryBudgets;
-  final double? totalAllocated;
 
   Budget({
     this.id,
@@ -18,7 +17,6 @@ class Budget {
     this.createdAt,
     this.updatedAt,
     this.subcategoryBudgets,
-    this.totalAllocated,
   });
 
   factory Budget.fromJson(Map<String, dynamic> json) {
@@ -39,7 +37,6 @@ class Budget {
                 .map((c) => SubcategoryBudget.fromJson(c))
                 .toList()
           : null,
-      totalAllocated: json['total_allocated']?.toDouble(),
     );
   }
 
@@ -64,8 +61,7 @@ class Budget {
     DateTime? startDate,
     DateTime? createdAt,
     DateTime? updatedAt,
-    List<SubcategoryBudget>? subcategoryBudgets,
-    double? totalAllocated,
+    List<SubcategoryBudget>? subcategoryBudgets
   }) {
     return Budget(
       id: id ?? this.id,
@@ -75,8 +71,7 @@ class Budget {
       startDate: startDate ?? this.startDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      subcategoryBudgets: subcategoryBudgets ?? this.subcategoryBudgets,
-      totalAllocated: totalAllocated ?? this.totalAllocated,
+      subcategoryBudgets: subcategoryBudgets ?? this.subcategoryBudgets
     );
   }
 }
