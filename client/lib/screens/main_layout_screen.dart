@@ -237,6 +237,9 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
   Widget _buildBottomNav() {
     return BottomNavigationBar(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: "Budget"),
           BottomNavigationBarItem(
