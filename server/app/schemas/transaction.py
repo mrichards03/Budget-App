@@ -1,6 +1,6 @@
 from pydantic import BaseModel, computed_field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 
 class TransactionBase(BaseModel):
@@ -36,6 +36,9 @@ class TransactionResponse(BaseModel):
     # ML prediction fields
     predicted_subcategory_id: Optional[int] = None
     predicted_confidence: Optional[float] = None
+    # Splits information when a transaction is split across multiple subcategories
+    is_split: bool = False
+    splits: Optional[List["TransactionSplitResponse"]] = []
     
     @computed_field
     @property
@@ -50,3 +53,32 @@ class TransactionResponse(BaseModel):
 class CategorizeTransactionRequest(BaseModel):
     """Request to categorize a transaction"""
     subcategory_id: int
+
+
+class TransactionSplitCreate(BaseModel):
+    subcategory_id: int
+    amount: float
+    memo: Optional[str] = None
+
+
+class TransactionSplitResponse(BaseModel):
+    id: int
+    subcategory_id: int
+    amount: float
+    memo: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CreateSplitsRequest(BaseModel):
+    splits: List[TransactionSplitCreate]
+    replace_existing: bool = True
+
+
+# Resolve forward references for Pydantic models
+try:
+    TransactionResponse.update_forward_refs()
+except Exception:
+    pass

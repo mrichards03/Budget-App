@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List, Optional, Dict
 from fastapi import HTTPException
 from datetime import datetime, timedelta
@@ -9,6 +10,7 @@ import logging
 from app.models.budget import Budget, SubcategoryBudget
 from app.models.category import Category, Subcategory
 from app.models.transaction import Transaction
+from app.models.transaction_split import TransactionSplit
 from app.schemas.budget import BudgetCreate, BudgetUpdate, SubcategoryBudgetCreate, SubcategoryBudgetResponse
 
 logger = logging.getLogger(__name__)
@@ -166,22 +168,36 @@ class BudgetService:
         
         spending = {}
         for subcat_budget in budget.subcategory_budgets:
-            # Get all transactions for this subcategory in the budget period
-            # Exclude transfers as they are net-zero between accounts
-            query = db.query(Transaction).filter(
-                Transaction.subcategory_id == subcat_budget.subcategory_id,
+            subcat_id = subcat_budget.subcategory_id
+
+            # Sum amounts for transactions directly categorized to the subcategory
+            query = db.query(func.sum(Transaction.amount)).filter(
+                Transaction.subcategory_id == subcat_id,
                 Transaction.posted >= budget.start_date,
-                Transaction.amount < 0,  # TODO check if true for cc
-                Transaction.is_transfer == False  # Exclude transfers
+                Transaction.is_transfer == False
             )
-            
-            # If budget has an end date, filter by it
             if budget.end_date:
                 query = query.filter(Transaction.posted <= budget.end_date)
-            
-            transactions = query.all()
-            total_spent = abs(sum(t.amount for t in transactions)) 
-            spending[subcat_budget.subcategory_id] = total_spent
+
+            direct_total = query.scalar() or 0.0
+
+            # Sum amounts for splits that allocate to this subcategory
+            split_query = db.query(func.sum(TransactionSplit.amount)).join(
+                Transaction, Transaction.id == TransactionSplit.transaction_id
+            ).filter(
+                TransactionSplit.subcategory_id == subcat_id,
+                Transaction.posted >= budget.start_date,
+                Transaction.is_transfer == False
+            )
+            if budget.end_date:
+                split_query = split_query.filter(Transaction.posted <= budget.end_date)
+
+            splits_total = split_query.scalar() or 0.0
+
+            # We're dealing with spending (outflows) so take absolute of negative sums
+            combined = float(direct_total or 0.0) + float(splits_total or 0.0)
+            total_spent = abs(combined)
+            spending[subcat_id] = total_spent
         
         return spending
     

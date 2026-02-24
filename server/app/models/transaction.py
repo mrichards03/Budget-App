@@ -25,9 +25,6 @@ class Transaction(Base):
     transfer_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)  # Link to other account
     transfer_transaction_id = Column(Integer, nullable=True)  # Plaid's transfer matching ID
     
-    # Location (store as JSON)
-    location = Column(JSON, nullable=True)
-    
     # ML predicted category (for your custom categorization)
     predicted_category = Column(String, nullable=True)  # Legacy field - not used
     predicted_confidence = Column(Float, nullable=True)  # Confidence score 0.0-1.0
@@ -41,6 +38,8 @@ class Transaction(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Split flag and relationship
+    is_split = Column(Boolean, default=False)
     
     # Relationship
     account = relationship("Account", back_populates="transactions", foreign_keys=[account_id])
@@ -48,6 +47,8 @@ class Transaction(Base):
     merchants = relationship("Merchant", secondary="transaction_merchants", back_populates="transactions")
     subcategory = relationship("Subcategory", back_populates="transactions", foreign_keys=[subcategory_id], overlaps="predicted_subcategory")
     predicted_subcategory = relationship("Subcategory", foreign_keys=[predicted_subcategory_id], overlaps="subcategory,transactions")
+    # Splits relationship (if a transaction is split into multiple subcategory lines)
+    splits = relationship("TransactionSplit", back_populates="transaction", cascade="all, delete-orphan")
     
     @property
     def merchant_name(self) -> Optional[str]:

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../models/transaction.dart';
+import '../models/transaction_split.dart';
 import '../models/category.dart';
 import '../models/account.dart';
 import '../widgets/transaction_category_field.dart';
@@ -21,6 +22,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   int? _editingTransactionId;
+  // Track which transactions have their splits expanded
+  final Set<int> _expandedSplits = {};
 
   // Sort state
   String _sortColumn = 'date'; // 'date' or 'account'
@@ -76,9 +79,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   double get _workingBalance {
     return _accounts.fold(0.0, (sum, a) {
-      if (a.accountType == 'credit') {
-        return sum - a.currentBalance;
-      }
       return sum + a.currentBalance;
     });
   }
@@ -499,6 +499,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
             ),
           ),
+          const SizedBox(
+            width: 96,
+            child: Text(
+              '',
+            ),
+          ),
         ],
       ),
     );
@@ -507,14 +513,79 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Widget _buildTransactionsList() {
     final sortedTransactions = _getSortedTransactions();
 
-    return ListView.builder(
-      itemCount: sortedTransactions.length,
-      itemBuilder: (context, index) {
-        final transaction = sortedTransactions[index];
-        final isEditing = _editingTransactionId == transaction.id;
+    // Build a flat list: parent rows and their optional split child rows
+    final children = <Widget>[];
+    for (final txn in sortedTransactions) {
+      final isEditing = _editingTransactionId == txn.id;
+      children.add(_buildTransactionRow(txn, isEditing));
 
-        return _buildTransactionRow(transaction, isEditing);
-      },
+      // Only show splits when expanded for this transaction
+      if (txn.isSplit &&
+          txn.splits != null &&
+          _expandedSplits.contains(txn.id)) {
+        for (final split in txn.splits!) {
+          children.add(_buildSplitRow(split, txn));
+        }
+      }
+    }
+
+    return ListView(children: children);
+  }
+
+  Widget _buildSplitRow(dynamic split, Transaction parent) {
+    // split is expected to be TransactionSplit model
+    final currencyFormat = NumberFormat.currency(symbol: '\$');
+    final subName = _getSubcategoryName(split.subcategoryId);
+    final isOutflow = (split.amount ?? 0) < 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Row(
+        children: [
+          SizedBox(width: 150), // account col empty
+          SizedBox(width: 100), // date col empty
+          const Expanded(flex: 2, child: SizedBox()), // payee empty to align
+          Expanded(
+            flex: 2,
+            child: Text(
+              subName ?? 'Unknown',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              split.memo ?? '',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+            ),
+          ),
+          SizedBox(
+            width: 100,
+            child: Text(
+              isOutflow ? currencyFormat.format(split.amount.abs()) : '',
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 13, color: Colors.red),
+            ),
+          ),
+          SizedBox(
+            width: 100,
+            child: Text(
+              !isOutflow ? currencyFormat.format(split.amount.abs()) : '',
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 13, color: Colors.green),
+            ),
+          ),
+          SizedBox(
+            width: 96,
+            child: IconButton(
+              icon: const Icon(Icons.edit, size: 18),
+              onPressed: () {
+                _openSplitDialog(parent);
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -593,9 +664,274 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ),
             ),
           ),
+          SizedBox(
+            width: 96,
+            child: Center(
+              child: (transaction.isSplit &&
+                      transaction.splits != null &&
+                      transaction.splits!.isNotEmpty)
+                  ? IconButton(
+                      icon: Icon(
+                        _expandedSplits.contains(transaction.id)
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 18,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          if (_expandedSplits.contains(transaction.id)) {
+                            _expandedSplits.remove(transaction.id);
+                          } else {
+                            _expandedSplits.add(transaction.id);
+                          }
+                        });
+                      },
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.call_split, size: 18),
+                      onPressed: () {
+                        _openSplitDialog(transaction);
+                      },
+                    ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _openSplitDialog(Transaction transaction) async {
+    final apiService = Provider.of<ApiService>(context, listen: false);
+
+    // Prepare initial rows: existing splits or two empty rows
+    List<Map<String, dynamic>> rows = [];
+    if (transaction.isSplit &&
+        transaction.splits != null &&
+        transaction.splits!.isNotEmpty) {
+      rows = transaction.splits!
+          .map((s) => {
+                'id': s.id,
+                'subcategory_id': s.subcategoryId,
+                'amount': s.amount,
+                'memo': s.memo,
+              })
+          .toList();
+    } else {
+      // default two rows dividing evenly
+      final half = (transaction.amount / 2);
+      rows = [
+        {'subcategory_id': null, 'amount': half, 'memo': null},
+        {
+          'subcategory_id': null,
+          'amount': transaction.amount - half,
+          'memo': null
+        },
+      ];
+    }
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setState) {
+          double total() =>
+              rows.fold(0.0, (s, r) => s + (r['amount'] as double));
+
+          String? validationError() {
+            // Allow empty rows: saving with zero rows will remove all splits
+            if (rows.isEmpty) return null;
+
+            if (double.parse(total().toStringAsFixed(2)) !=
+                double.parse(transaction.amount.toStringAsFixed(2))) {
+              return 'Split amounts must sum to ${NumberFormat.currency(symbol: '\$').format(transaction.amount)}';
+            }
+
+            return null;
+          }
+
+          return AlertDialog(
+            title: const Text('Split Transaction'),
+            content: SizedBox(
+              width: 600,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                      'Original: ${NumberFormat.currency(symbol: '\$').format(transaction.amount)}'),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: rows.length,
+                      itemBuilder: (context, idx) {
+                        final row = rows[idx];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: DropdownButtonFormField<int>(
+                                  value: row['subcategory_id'],
+                                  items: _categories
+                                      .expand((c) => c.subcategories ?? [])
+                                      .map((s) => DropdownMenuItem<int>(
+                                            value: s.id,
+                                            child: Text(s.name),
+                                          ))
+                                      .toList(),
+                                  onChanged: (val) => setState(
+                                      () => row['subcategory_id'] = val),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Subcategory'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  initialValue: (row['amount'] as double)
+                                      .toStringAsFixed(2),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
+                                  decoration: const InputDecoration(
+                                      labelText: 'Amount'),
+                                  onChanged: (v) {
+                                    final parsed = double.tryParse(v) ?? 0.0;
+                                    setState(() => row['amount'] = parsed);
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 3,
+                                child: TextFormField(
+                                  initialValue: row['memo'] ?? '',
+                                  decoration:
+                                      const InputDecoration(labelText: 'Memo'),
+                                  onChanged: (v) =>
+                                      setState(() => row['memo'] = v),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () => setState(() {
+                                  rows.removeAt(idx);
+                                }),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => setState(() => rows.add({
+                              'subcategory_id': null,
+                              'amount': 0.0,
+                              'memo': null
+                            })),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Split'),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                          'Total: ${NumberFormat.currency(symbol: '\$').format(total())}'),
+                      const SizedBox(width: 12),
+                      if (validationError() != null)
+                        Text(validationError()!,
+                            style: const TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: validationError() != null
+                    ? null
+                    : () async {
+                        // Build API payload
+                        final payload = rows
+                            .map((r) => {
+                                  'subcategory_id': r['subcategory_id'],
+                                  'amount': r['amount'],
+                                  'memo': r['memo'],
+                                })
+                            .toList();
+
+                        try {
+                          await apiService.transactions.setTransactionSplits(
+                              transaction.id, payload,
+                              replaceExisting: true);
+
+                          // Update local transaction with new splits
+                          setState(() {
+                            final idx = _transactions
+                                .indexWhere((t) => t.id == transaction.id);
+                            if (idx != -1) {
+                              final updatedSplits = rows.isNotEmpty
+                                  ? rows
+                                      .asMap()
+                                      .entries
+                                      .map((e) => TransactionSplit(
+                                            id: e.key,
+                                            subcategoryId:
+                                                e.value['subcategory_id'] ?? 0,
+                                            amount: e.value['amount'] as double,
+                                            memo: e.value['memo'],
+                                            createdAt: DateTime.now(),
+                                          ))
+                                      .toList()
+                                  : null;
+
+                              _transactions[idx] = Transaction(
+                                id: transaction.id,
+                                accountId: transaction.accountId,
+                                amount: transaction.amount,
+                                effectiveDate: transaction.effectiveDate,
+                                name: transaction.name,
+                                memo: transaction.memo,
+                                subcategoryId: null,
+                                pending: transaction.pending,
+                                createdAt: transaction.createdAt,
+                                isTransfer: transaction.isTransfer,
+                                transferAccountId:
+                                    transaction.transferAccountId,
+                                predictedSubcategoryId:
+                                    transaction.predictedSubcategoryId,
+                                predictedConfidence:
+                                    transaction.predictedConfidence,
+                                isSplit: updatedSplits != null,
+                                splits: updatedSplits,
+                              );
+                            }
+                          });
+
+                          Navigator.of(context).pop(true);
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text('Failed to save splits: $e')));
+                        }
+                      },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        });
+      },
+    );
+
+    if (result == true) {
+      // Optionally reload data from server for accuracy
+      await _loadData();
+    }
   }
 
   String? _getSubcategoryName(int? subcategoryId) {
@@ -614,6 +950,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Widget _buildCategoryField(Transaction transaction, bool isEditing) {
+    if (transaction.isSplit) {
+      final subName = _getSubcategoryName(transaction.subcategoryId);
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          subName ?? 'Split',
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+        ),
+      );
+    }
+
     return TransactionCategoryField(
       transaction: transaction,
       categories: _categories,

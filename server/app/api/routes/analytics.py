@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -27,7 +27,8 @@ async def get_analytics_data(
     Returns all transactions with lookup maps for categories, subcategories, and accounts.
     """
     # Query transactions (exclude transfers as they are net-zero)
-    query = db.query(Transaction).filter(Transaction.is_transfer == False)
+    # Eager-load splits to properly account for split transactions
+    query = db.query(Transaction).options(joinedload(Transaction.splits)).filter(Transaction.is_transfer == False)
     if start_date:
         query = query.filter(Transaction.posted >= start_date)
     if end_date:
@@ -40,7 +41,15 @@ async def get_analytics_data(
     
     # Collect IDs for lookups
     account_ids = {t.account_id for t in transactions}
-    subcategory_ids = {t.subcategory_id for t in transactions if t.subcategory_id}
+    # Include subcategory ids from both parent transactions and splits
+    subcategory_ids = set()
+    for t in transactions:
+        if t.subcategory_id:
+            subcategory_ids.add(t.subcategory_id)
+        if getattr(t, 'splits', None):
+            for s in t.splits:
+                if s.subcategory_id:
+                    subcategory_ids.add(s.subcategory_id)
     
     # Fetch all needed subcategories
     subcategories_dict = {}
@@ -66,10 +75,22 @@ async def get_analytics_data(
         for acc in accounts:
             accounts_dict[acc.id] = AccountInfo.model_validate(acc)
     
-    # Calculate summary statistics
-    # TODO check if correct for all of simpleFin including credit cards
-    total_spending = sum(t.amount for t in transactions if t.amount < 0)
-    total_income = sum(t.amount for t in transactions if t.amount > 0)
+    # Calculate summary statistics, accounting for split transactions
+    total_spending = 0.0
+    total_income = 0.0
+    for t in transactions:
+        if getattr(t, 'splits', None) and len(t.splits) > 0:
+            for s in t.splits:
+                if s.amount < 0:
+                    total_spending += s.amount
+                else:
+                    total_income += s.amount
+        else:
+            if t.amount < 0:
+                total_spending += t.amount
+            else:
+                total_income += t.amount
+
     net = total_income + total_spending
     
     # Calculate date range
@@ -93,12 +114,20 @@ async def get_analytics_data(
     subcategory_breakdown = defaultdict(float)
     
     for t in transactions:
-        if t.subcategory_id:
-            subcategory_breakdown[t.subcategory_id] += t.amount
-            # Get category_id from subcategory
-            if t.subcategory_id in subcategories_dict:
-                category_id = subcategories_dict[t.subcategory_id].category_id
-                category_breakdown[category_id] += t.amount
+        if getattr(t, 'splits', None) and len(t.splits) > 0:
+            for s in t.splits:
+                if s.subcategory_id:
+                    subcategory_breakdown[s.subcategory_id] += s.amount
+                    if s.subcategory_id in subcategories_dict:
+                        category_id = subcategories_dict[s.subcategory_id].category_id
+                        category_breakdown[category_id] += s.amount
+        else:
+            if t.subcategory_id:
+                subcategory_breakdown[t.subcategory_id] += t.amount
+                # Get category_id from subcategory
+                if t.subcategory_id in subcategories_dict:
+                    category_id = subcategories_dict[t.subcategory_id].category_id
+                    category_breakdown[category_id] += t.amount
     
     summary = AnalyticsSummary(
         total_spending=total_spending,

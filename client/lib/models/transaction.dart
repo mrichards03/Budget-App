@@ -1,3 +1,5 @@
+import 'transaction_split.dart';
+
 class Transaction {
   final int id;
   final String accountId;
@@ -10,6 +12,8 @@ class Transaction {
   final DateTime createdAt;
   final bool isTransfer;
   final int? transferAccountId;
+  final bool isSplit;
+  final List<TransactionSplit>? splits;
 
   // ML prediction fields
   final int? predictedSubcategoryId;
@@ -29,6 +33,8 @@ class Transaction {
     this.transferAccountId,
     this.predictedSubcategoryId,
     this.predictedConfidence,
+    this.isSplit = false,
+    this.splits,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
@@ -46,6 +52,12 @@ class Transaction {
       transferAccountId: json['transfer_account_id'],
       predictedSubcategoryId: json['predicted_subcategory_id'],
       predictedConfidence: json['predicted_confidence']?.toDouble(),
+      isSplit: json['is_split'] ?? false,
+      splits: json['splits'] != null
+          ? (json['splits'] as List<dynamic>)
+              .map((s) => TransactionSplit.fromJson(s))
+              .toList()
+          : null,
     );
   }
 

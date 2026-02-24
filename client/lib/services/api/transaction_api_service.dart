@@ -33,4 +33,20 @@ class TransactionApiService extends BaseApiService {
       },
     );
   }
+
+  /// Create or replace splits for a transaction.
+  /// `splits` should be a list of maps: { 'subcategory_id': int, 'amount': double, 'memo': String? }
+  Future<dynamic> setTransactionSplits(
+    int transactionId,
+    List<Map<String, dynamic>> splits, {
+    bool replaceExisting = true,
+  }) async {
+    final body = {
+      'splits': splits,
+      'replace_existing': replaceExisting,
+    };
+
+    return await post('/api/transactions/$transactionId/splits', body: body);
+  }
+
 }
